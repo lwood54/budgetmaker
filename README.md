@@ -1,6 +1,4 @@
-# sv
-
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+# Budgetmaker IO
 
 ## Creating a project
 
@@ -36,3 +34,57 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Dev
+
+Run:
+
+```bash
+pnpm run dev
+```
+
+## Preview
+
+Run:
+
+```bash
+pnpm run preview
+```
+
+## Deploy
+
+- checkout branch
+- make changes
+- commit
+- push
+- PR
+- merge (auto deploy)
+
+## DB
+
+If there are schema changes and we need to migrate the DB,
+Run:
+
+## Make migrations - generates migration files
+
+```bash
+pnpm run db:make-migrations
+```
+
+## Migrate - applies migrations to the (LOCAL) database
+
+```bash
+pnpm run db:migrate
+```
+
+## Migrate to D1 simulated database for local testing
+
+```bash
+wrangler d1 migrations apply <name-of-db>
+```
+
+## Migrate to D1 production database
+
+```bash
+wrangler d1 migrations apply <name-of-db> --remote
+```
