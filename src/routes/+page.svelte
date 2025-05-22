@@ -7,8 +7,8 @@
 	let name = $state('');
 </script>
 
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<h1>Budgetmaker IO</h1>
+<p>more coming soon...</p>
 
 <div>
 	{#each data.budgets as budget}
