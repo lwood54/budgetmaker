@@ -1,3 +1,113 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+@plugin 'flowbite/plugin';
+
+@source "../node_modules/flowbite-svelte/dist";
+@source "../node_modules/flowbite-svelte-icons/dist";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* TEAL (Primary) */
+  --color-primary-50: #f0fdfa;
+  --color-primary-100: #ccfbf1;
+  --color-primary-200: #99f6e4;
+  --color-primary-300: #5eead4;
+  --color-primary-400: #2dd4bf;
+  --color-primary-500: #14b8a6;
+  --color-primary-600: #0d9488;
+  --color-primary-700: #0f766e;
+  --color-primary-800: #115e59;
+  --color-primary-900: #134e4a;
+
+  /* EMERALD (Secondary) */
+  --color-secondary-50: #ecfdf5;
+  --color-secondary-100: #d1fae5;
+  --color-secondary-200: #a7f3d0;
+  --color-secondary-300: #6ee7b7;
+  --color-secondary-400: #34d399;
+  --color-secondary-500: #10b981;
+  --color-secondary-600: #059669;
+  --color-secondary-700: #047857;
+  --color-secondary-800: #065f46;
+  --color-secondary-900: #064e3b;
+
+  /* ACCENT (Warm Purple)
+  --color-accent-50: #fdf4ff;
+  --color-accent-100: #fae8ff;
+  --color-accent-200: #f5d0fe;
+  --color-accent-300: #f0abfc;
+  --color-accent-400: #e879f9;
+  --color-accent-500: #d946ef;
+  --color-accent-600: #c026d3;
+  --color-accent-700: #a21caf;
+  --color-accent-800: #86198f;
+  --color-accent-900: #701a75; */
+
+  /* ACCENT (Rusty Amber / Burnt Orange) */
+  --color-accent-50: #fff8f1;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-300: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
+  --color-accent-700: #c2410c;
+  --color-accent-800: #9a3412;
+  --color-accent-900: #7c2d12;
+
+  /* NEUTRALS (for backgrounds, borders, etc.) */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* FONT COLORS */
+  --color-font-default: #f1f5f9; /* light text on dark bg */
+  --color-font-muted: #cbd5e1;
+  --color-font-inverted: #0f172a; /* dark text on light bg */
+  --color-font-danger: #f87171; /* red */
+  --color-font-success: #34d399; /* emerald */
+  --color-font-warning: #facc15; /* yellow */
+
+  /* BUTTON STATES */
+  --color-btn-bg: var(--color-primary-600);
+  --color-btn-bg-hover: var(--color-primary-500);
+  --color-btn-bg-active: var(--color-primary-700);
+  --color-btn-text: #ffffff;
+  --color-btn-outline: var(--color-primary-500);
+  --color-btn-outline-hover: var(--color-primary-400);
+
+  /* SHADOWS & HIGHLIGHTS */
+  --color-focus-ring: var(--color-accent-500);
+  --color-border: var(--color-neutral-700);
+  --color-divider: var(--color-neutral-800);
+
+  /* BACKGROUNDS */
+  --color-bg-default: #0f172a;
+  --color-bg-surface: #1e293b;
+  --color-bg-muted: #334155;
+  --color-bg-hover: #475569;
+  --color-bg-accent: var(--color-accent-900);
+}
+
+@layer base {
+  /* disable chrome cancel button */
+  input[type='search']::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+body {
+  font-family: var(--font-primary);
+  button {
+    cursor: pointer;
+  }
+}
