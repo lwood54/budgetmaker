@@ -1,0 +1,16 @@
+export const Route = {
+  budgets: '/budgets',
+  budget: (budgetUUID: string) => `/budgets/${budgetUUID}`,
+  categories: (budgetUUID: string) => `/budgets/${budgetUUID}/categories`,
+  calculators: '/calculators',
+  home: '/',
+  login: '/login',
+  logout: '/logout',
+  paydown: '/paydown',
+  privacy: '/privacy',
+  reset: '/reset',
+  resetComplete: '/reset/complete',
+  signup: '/signup',
+  terms: '/terms',
+  verify: '/verify',
+} as const;
