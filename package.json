@@ -17,6 +17,7 @@
     "db:make-migrations": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "db:studio:local": "DRIZZLE_USE_LOCAL=true drizzle-kit studio",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types ./src/worker-configuration.d.ts"
   },
@@ -31,6 +32,7 @@
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/svelte": "^5.2.4",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22",
     "drizzle-kit": "^0.30.2",
     "eslint": "^9.18.0",
@@ -55,7 +57,10 @@
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
-    "drizzle-orm": "^0.40.0"
+    "bcryptjs": "^3.0.2",
+    "drizzle-orm": "^0.40.0",
+    "jsonwebtoken": "^9.0.2",
+    "resend": "^4.5.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
