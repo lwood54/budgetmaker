@@ -78,7 +78,6 @@ pnpm run db:migrate
 ```
 
 ## Migrate to D1 simulated database for local testing
-
 ```bash
 wrangler d1 migrations apply <name-of-db>
 ```
@@ -88,3 +87,4 @@ wrangler d1 migrations apply <name-of-db>
 ```bash
 wrangler d1 migrations apply <name-of-db> --remote
 ```
+example: wrangler d1 migrations apply budgetmaker_db --remote

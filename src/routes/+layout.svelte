@@ -1,6 +1,5 @@
 <script lang="ts">
   import {
-    Button,
     DarkMode,
     Navbar,
     NavHamburger,
@@ -9,22 +8,16 @@
     P,
     Drawer,
     CloseButton,
-    Label,
-    Input,
-    Textarea,
   } from 'flowbite-svelte';
   import '../app.css';
   import { Route } from '$lib/constants/routes';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
-  import InfoCircleSolid from 'flowbite-svelte-icons/InfoCircleSolid.svelte';
-  import UserAddOutline from 'flowbite-svelte-icons/UserAddOutline.svelte';
-  import CalendarEditSolid from 'flowbite-svelte-icons/CalendarEditSolid.svelte';
 
   const txtActiveClass = 'text-primary-900 font-bold dark:text-primary-200';
   const txtNonActiveClass = 'text-primary-700 dark:text-primary-400';
 
-  let { children } = $props();
+  let { children, data } = $props();
   let activeUrl = $derived(page.url.pathname);
   let hidden = $state(false);
   let screenWidth = $state(0);
@@ -33,6 +26,7 @@
   let blurValue = $state(0);
   let isDarkMode = $state(false);
   let isDrawerHidden = $state(true);
+  $inspect('DATA ---> ', data);
 
   function updateScreenWidth() {
     screenWidth = window?.innerWidth;
@@ -51,7 +45,7 @@
     window?.addEventListener('resize', updateScreenWidth);
     window?.addEventListener('scroll', handleScroll);
     const themeMode = localStorage.getItem('THEME_PREFERENCE_KEY');
-    isDarkMode = themeMode === 'dark';
+    isDarkMode = themeMode !== 'light';
 
     return () => {
       window?.removeEventListener('resize', updateScreenWidth);
@@ -74,7 +68,6 @@
 >
   <Navbar class="!bg-transparent !px-0 py-3">
     <div class="flex w-full items-center justify-between">
-      <!-- <NavHamburger hidden={!hidden} onclick={toggleMenu} /> -->
       <NavHamburger onclick={() => (isDrawerHidden = !isDrawerHidden)} />
       <div class="flex items-center">
         <P size="xl" class={txtActiveClass}>BudgetmakerIO</P>
@@ -90,16 +83,24 @@
             nonActiveClass={txtNonActiveClass}
             href={Route.calculators}>Calculators</NavLi
           >
-          <NavLi
-            activeClass={txtActiveClass}
-            nonActiveClass={txtNonActiveClass}
-            href={Route.budgets}>Budgets</NavLi
-          >
-          <NavLi
-            activeClass={txtActiveClass}
-            nonActiveClass={txtNonActiveClass}
-            href={Route.paydown}>Paydown</NavLi
-          >
+          {#if data.user}
+            <NavLi
+              activeClass={txtActiveClass}
+              nonActiveClass={txtNonActiveClass}
+              href={Route.budgets}>Budgets</NavLi
+            >
+            <NavLi
+              activeClass={txtActiveClass}
+              nonActiveClass={txtNonActiveClass}
+              href={Route.paydown}>Paydown</NavLi
+            >
+          {:else}
+            <NavLi
+              activeClass={txtActiveClass}
+              nonActiveClass={txtNonActiveClass}
+              href={Route.login}>Login</NavLi
+            >
+          {/if}
         </NavUl>
 
         <div
