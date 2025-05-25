@@ -1,6 +1,9 @@
 // src/lib/server/email.ts
 import { Resend } from 'resend';
-import { RESEND_API_KEY } from '$env/static/private';
+// import { RESEND_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+
+const RESEND_API_KEY = env.RESEND_API_KEY;
 
 const resend = new Resend(RESEND_API_KEY);
 
