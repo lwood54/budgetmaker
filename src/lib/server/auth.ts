@@ -1,13 +1,16 @@
 // src/lib/server/auth.ts
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
-import { JWT_SECRET } from '$env/static/private';
+// import { JWT_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import type { Cookies } from '@sveltejs/kit';
 import { sessions, users } from './db/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import type { DrizzleClient } from './db';
 import bcrypt from 'bcryptjs';
 import { dev } from '$app/environment';
+
+const JWT_SECRET = env.JWT_SECRET;
 
 export interface TokenPayload {
   sub: string; // user UUID
