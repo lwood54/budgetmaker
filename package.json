@@ -15,9 +15,9 @@
     "test:unit": "vitest",
     "test": "npm run test:unit -- --run",
     "db:make-migrations": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:dev": "wrangler d1 migrations apply budgetmaker_db",
+    "db:migrate:prod": "wrangler d1 migrations apply budgetmaker_db --remote",
     "db:studio": "drizzle-kit studio",
-    "db:studio:local": "DRIZZLE_USE_LOCAL=true drizzle-kit studio",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types ./src/worker-configuration.d.ts"
   },

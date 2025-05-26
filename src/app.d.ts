@@ -16,16 +16,10 @@ declare global {
         userId: string;
         email: string;
         sessionId: string;
+        isAdmin: boolean;
       };
       baseUrl: string;
     }
-    // interface PageData {
-    //   user?: {
-    //     userId: string;
-    //     email: string;
-    //     sessionId: string;
-    //   };
-    // }
   }
 }
 
