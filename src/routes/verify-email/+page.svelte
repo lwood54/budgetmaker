@@ -1,11 +1,8 @@
-<!-- src/routes/verify-email/+page.svelte -->
 <script lang="ts">
   import { enhance } from '$app/forms';
 
   let { data, form } = $props();
   let isResending = $state(false);
-
-  $inspect('DATA ---> ', data, form);
 </script>
 
 <svelte:head>
@@ -66,6 +63,7 @@
             <form method="post" action="?/login" use:enhance>
               <input type="hidden" name="userId" value={data.userId} />
               <input type="hidden" name="email" value={data.email} />
+              <input type="hidden" name="isAdmin" value={data.isAdmin} />
 
               <button
                 type="submit"
