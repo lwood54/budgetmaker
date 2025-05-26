@@ -71,20 +71,20 @@ Run:
 pnpm run db:make-migrations
 ```
 
-## Migrate - applies migrations to the (LOCAL) database
+## Migrate - applies migrations to the (LOCAL D1 simulation) database
 
 ```bash
-pnpm run db:migrate
-```
-
-## Migrate to D1 simulated database for local testing
-```bash
-wrangler d1 migrations apply <name-of-db>
+pnpm run db:migrate:dev
 ```
 
 ## Migrate to D1 production database
 
 ```bash
+pnpm run db:migrate:prod
+```
+
+```bash
 wrangler d1 migrations apply <name-of-db> --remote
 ```
+
 example: wrangler d1 migrations apply budgetmaker_db --remote

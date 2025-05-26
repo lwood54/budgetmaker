@@ -3,14 +3,12 @@
   import { P } from 'flowbite-svelte';
 </script>
 
-<!-- Fixed background with parallax effect -->
 <div class="fixed inset-0 -z-10">
   <img class="h-full w-full object-cover" src={backgroundImg} alt="BudgetmakerIO" />
   <div class="bg-secondary-500/60 dark:bg-secondary-900/70 absolute inset-0"></div>
   <div class="absolute inset-0 bg-neutral-900/10 dark:bg-neutral-900/30"></div>
 </div>
 
-<!-- Hero section (full height) -->
 <div class="flex h-screen items-center justify-center">
   <div class="text-center">
     <P size="5xl" class="text-primary-900 dark:text-primary-200 text-center font-bold"
@@ -22,7 +20,6 @@
   </div>
 </div>
 
-<!-- Content section (scrolls over the background) -->
 <div class="relative min-h-screen bg-white px-4 py-12 shadow-xl dark:bg-neutral-900">
   <div class="h-24"></div>
 
@@ -34,7 +31,6 @@
     </p>
 
     <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
-      <!-- Budget Tracking -->
       <div
         class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
       >
@@ -63,7 +59,6 @@
         </p>
       </div>
 
-      <!-- Financial Calculator -->
       <div
         class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
       >
@@ -92,7 +87,6 @@
         </p>
       </div>
 
-      <!-- Credit Paydown Visualization -->
       <div
         class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
       >
@@ -122,7 +116,6 @@
       </div>
     </div>
 
-    <!-- Call to Action Section -->
     <div class="mt-20 text-center">
       <h2 class="mb-4 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
         Ready to Transform Your Financial Future?
@@ -135,7 +128,6 @@
       </a>
     </div>
 
-    <!-- Footer -->
     <footer class="mt-24 border-t border-neutral-200 pt-8 dark:border-neutral-700">
       <div class="flex flex-col justify-between gap-4 md:flex-row">
         <a

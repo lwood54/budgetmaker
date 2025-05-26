@@ -20,12 +20,12 @@ export const load: PageServerLoad = async ({ url, locals, cookies }) => {
   if (token) {
     const result = await verifyEmailToken(token, locals.db);
 
-    if (result.success) {
+    if (result.success && result.userId) {
       // Get user details for auto-login
       const userResult = await locals.db
         .select()
         .from(users)
-        .where(eq(users.uuid, result.userId!))
+        .where(eq(users.uuid, result.userId))
         .limit(1);
 
       if (userResult.length > 0) {

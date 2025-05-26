@@ -15,7 +15,7 @@
 </svelte:head>
 
 <div
-  class="flex min-h-screen flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
+  class="flex min-h-screen w-full flex-col justify-center gap-10 bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
 >
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
     <P size="3xl" class="text-primary-900 dark:text-primary-200 mb-2 text-center font-bold">
@@ -24,8 +24,8 @@
     <P class="text-center text-gray-600 dark:text-gray-400">Sign in to your Budget Maker account</P>
   </div>
 
-  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-    <Card class="px-4 py-8 shadow sm:rounded-lg sm:px-10">
+  <div class="flex justify-center px-6">
+    <Card class="max-w-[600px] px-4 py-8 shadow sm:rounded-lg sm:px-10">
       {#if data?.message}
         <Alert color="green" class="mb-6">
           <span class="font-medium">Success:</span>
@@ -64,14 +64,13 @@
         }}
         class="space-y-6"
       >
-        <!-- Email Field -->
         <div>
           <Label for="email" class="mb-2">Email Address</Label>
           <Input
             id="email"
             name="email"
             type="email"
-            placeholder="john@example.com"
+            placeholder="your@email.com"
             value={form?.email || ''}
             required
             class="block w-full"
@@ -79,7 +78,6 @@
           />
         </div>
 
-        <!-- Password Field -->
         <div>
           <Label for="password" class="mb-2">Password</Label>
           <div class="relative">
@@ -107,7 +105,6 @@
           </div>
         </div>
 
-        <!-- Forgot Password Link -->
         <div class="flex items-center justify-between">
           <div></div>
           <div class="text-sm">
@@ -117,7 +114,6 @@
           </div>
         </div>
 
-        <!-- Submit Button -->
         <div>
           <Button type="submit" class="flex w-full justify-center px-4 py-2" disabled={loading}>
             {#if loading}
@@ -129,7 +125,6 @@
           </Button>
         </div>
 
-        <!-- Sign Up Link -->
         <div class="text-center">
           <P class="text-sm text-gray-600 dark:text-gray-400">
             Don't have an account?

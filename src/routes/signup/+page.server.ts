@@ -23,7 +23,6 @@ export const actions: Actions = {
     const firstName = formData.get('firstName')?.toString();
     const lastName = formData.get('lastName')?.toString();
 
-    // Basic validation
     if (!email || !password) {
       return fail(400, {
         error: 'Email and password are required',
@@ -33,7 +32,6 @@ export const actions: Actions = {
       });
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return fail(400, {
@@ -44,7 +42,6 @@ export const actions: Actions = {
       });
     }
 
-    // Password validation
     if (password.length < 8) {
       return fail(400, {
         error: 'Password must be at least 8 characters long',
@@ -63,7 +60,6 @@ export const actions: Actions = {
       });
     }
 
-    // Check for strong password (optional - adjust as needed)
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
@@ -80,7 +76,6 @@ export const actions: Actions = {
     }
 
     try {
-      // Check if user already exists
       const existingUser = await locals.db
         .select()
         .from(users)
@@ -96,7 +91,6 @@ export const actions: Actions = {
         });
       }
 
-      // Create the user
       const userId = await createUser(
         email,
         password,
@@ -126,7 +120,6 @@ export const actions: Actions = {
     } catch (error) {
       console.error('Signup error:', error);
 
-      // Handle specific database errors
       if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
         return fail(400, {
           error: 'An account with this email already exists',
@@ -143,6 +136,7 @@ export const actions: Actions = {
         lastName: lastName || '',
       });
     }
+
     // NOTE: if successful send to verify email, redirect to verify email page
     // throw must be outside try/catch unless you really want to catch the error
     throw redirect(302, '/verify-email?email=' + encodeURIComponent(email));

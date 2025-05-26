@@ -19,7 +19,7 @@
 </svelte:head>
 
 <div
-  class="flex min-h-screen flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
+  class="flex min-h-screen flex-col justify-center gap-8 bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
 >
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
     {#if currentStep === 'request'}
@@ -44,8 +44,8 @@
     {/if}
   </div>
 
-  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-    <Card class="px-4 py-8 shadow sm:rounded-lg sm:px-10">
+  <div class="flex justify-center px-6">
+    <Card class="min-w-full px-4 py-8 shadow sm:min-w-[500px] sm:rounded-lg sm:px-10">
       {#if form?.error || data?.error}
         <Alert color="red" class="mb-6">
           <span class="font-medium">Error:</span>
@@ -54,7 +54,6 @@
       {/if}
 
       {#if currentStep === 'request'}
-        <!-- Request Password Reset Form -->
         <form
           method="POST"
           action="?/request"
@@ -67,7 +66,6 @@
           }}
           class="space-y-6"
         >
-          <!-- Email Field -->
           <div>
             <Label for="email" class="mb-2">Email Address</Label>
             <Input
@@ -82,7 +80,6 @@
             />
           </div>
 
-          <!-- Submit Button -->
           <div>
             <Button type="submit" class="flex w-full justify-center px-4 py-2" disabled={loading}>
               {#if loading}
@@ -94,7 +91,6 @@
             </Button>
           </div>
 
-          <!-- Back to Login Link -->
           <div class="text-center">
             <P class="text-sm text-gray-600 dark:text-gray-400">
               Remember your password?
@@ -105,7 +101,6 @@
           </div>
         </form>
       {:else if currentStep === 'sent'}
-        <!-- Email Sent Confirmation -->
         <div class="space-y-6 text-center">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
             <svg
@@ -136,7 +131,6 @@
             </P>
           </div>
 
-          <!-- Back to Login Link -->
           <div>
             <A href={Route.login} class="text-primary-600 hover:text-primary-500 font-medium">
               Back to Login
@@ -144,7 +138,6 @@
           </div>
         </div>
       {:else if currentStep === 'reset'}
-        <!-- Reset Password Form -->
         <form
           method="POST"
           action="?/reset"
@@ -158,8 +151,6 @@
           class="space-y-6"
         >
           <input type="hidden" name="token" value={currentToken} />
-
-          <!-- New Password Field -->
           <div>
             <Label for="password" class="mb-2">New Password</Label>
             <div class="relative">
@@ -187,7 +178,6 @@
             </div>
           </div>
 
-          <!-- Confirm Password Field -->
           <div>
             <Label for="confirmPassword" class="mb-2">Confirm New Password</Label>
             <div class="relative">
@@ -215,7 +205,6 @@
             </div>
           </div>
 
-          <!-- Password Requirements -->
           <div class="text-sm text-gray-600 dark:text-gray-400">
             <P class="mb-1">Password must contain:</P>
             <ul class="list-inside list-disc space-y-1 text-xs">
@@ -227,7 +216,6 @@
             </ul>
           </div>
 
-          <!-- Submit Button -->
           <div>
             <Button type="submit" class="flex w-full justify-center px-4 py-2" disabled={loading}>
               {#if loading}
@@ -239,7 +227,6 @@
             </Button>
           </div>
 
-          <!-- Back to Login Link -->
           <div class="text-center">
             <P class="text-sm text-gray-600 dark:text-gray-400">
               Remember your password?

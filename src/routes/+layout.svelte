@@ -66,7 +66,7 @@
   class="fixed top-0 left-0 z-50 w-full transition-all duration-300"
   style={`background-color: ${isDarkMode ? 'rgba(15, 23, 42, ' + navbarOpacity + ')' : 'rgba(255, 255, 255, ' + navbarOpacity + ')'}; backdrop-filter: blur(${blurValue}px)`}
 >
-  <Navbar class="!bg-transparent !px-0 py-3">
+  <Navbar class="bg-transparent px-2 py-3">
     <div class="flex w-full items-center justify-between">
       <NavHamburger onclick={() => (isDrawerHidden = !isDrawerHidden)} />
       <div class="flex items-center">

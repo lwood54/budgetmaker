@@ -1,26 +1,22 @@
 <script lang="ts">
   import { Card, Button, Label, Input, Helper, P, A, Alert, Spinner } from 'flowbite-svelte';
   import { enhance } from '$app/forms';
-  import type { ActionData } from './$types';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
 
-  export let form: ActionData;
+  let { form } = $props();
 
-  let showPassword = false;
-  let showConfirmPassword = false;
-  let loading = false;
+  let showPassword = $state(false);
+  let showConfirmPassword = $state(false);
+  let loading = $state(false);
+  let password = $state('');
 
-  // Form validation states
-  let passwordStrength = {
-    hasUpperCase: false,
-    hasLowerCase: false,
-    hasNumbers: false,
-    hasSpecialChar: false,
-    minLength: false,
-  };
+  let passwordStrength = $derived(checkPasswordStrength(password));
+  let validCount = $derived(Object.values(passwordStrength).filter(Boolean).length);
+  let passwordStrengthColor = $derived(getPasswordStrengthColor());
+  let passwordStrengthText = $derived(getPasswordStrengthText());
 
   function checkPasswordStrength(password: string) {
-    passwordStrength = {
+    return {
       hasUpperCase: /[A-Z]/.test(password),
       hasLowerCase: /[a-z]/.test(password),
       hasNumbers: /\d/.test(password),
@@ -30,7 +26,6 @@
   }
 
   function getPasswordStrengthColor() {
-    const validCount = Object.values(passwordStrength).filter(Boolean).length;
     if (validCount <= 2) return 'red';
     if (validCount <= 4) return 'yellow';
     return 'green';
@@ -49,7 +44,7 @@
 </svelte:head>
 
 <div
-  class="flex min-h-screen flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
+  class="flex min-h-screen flex-col justify-center gap-8 bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
 >
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
     <P size="3xl" class="text-primary-900 dark:text-primary-200 mb-2 text-center font-bold">
@@ -60,8 +55,8 @@
     </P>
   </div>
 
-  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-    <Card class="px-4 py-8 shadow sm:rounded-lg sm:px-10">
+  <div class="flex justify-center px-6">
+    <Card class="px-4 py-8 shadow sm:min-w-full sm:rounded-lg sm:px-10 md:min-w-[600px]">
       {#if form?.error}
         <Alert color="red" class="mb-6">
           <span class="font-medium">Error:</span>
@@ -81,7 +76,6 @@
         }}
         class="space-y-6"
       >
-        <!-- Name Fields -->
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div>
             <Label for="firstName" class="mb-2">First Name</Label>
@@ -89,7 +83,7 @@
               id="firstName"
               name="firstName"
               type="text"
-              placeholder="John"
+              placeholder="First name"
               value={form?.firstName || ''}
               class="block w-full"
             />
@@ -100,21 +94,20 @@
               id="lastName"
               name="lastName"
               type="text"
-              placeholder="Doe"
+              placeholder="Last name"
               value={form?.lastName || ''}
               class="block w-full"
             />
           </div>
         </div>
 
-        <!-- Email Field -->
         <div>
           <Label for="email" class="mb-2">Email Address *</Label>
           <Input
             id="email"
             name="email"
             type="email"
-            placeholder="john@example.com"
+            placeholder="your@email.com"
             value={form?.email || ''}
             required
             class="block w-full"
@@ -124,7 +117,6 @@
           </Helper>
         </div>
 
-        <!-- Password Field -->
         <div>
           <Label for="password" class="mb-2">Password *</Label>
           <div class="relative">
@@ -134,11 +126,8 @@
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               required
+              bind:value={password}
               class="block w-full pr-10"
-              oninput={(e) => {
-                const target = e.target as HTMLInputElement;
-                if (target) checkPasswordStrength(target.value);
-              }}
             />
             <button
               type="button"
@@ -153,23 +142,21 @@
             </button>
           </div>
 
-          <!-- Password Strength Indicator -->
           <div class="mt-2">
             <div class="mb-1 flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Password strength:</span>
-              <span class="text-sm font-medium text-{getPasswordStrengthColor()}-600">
-                {getPasswordStrengthText()}
+              <span class="text-sm font-medium text-{passwordStrengthColor}-600">
+                {passwordStrengthText}
               </span>
             </div>
             <div class="h-2 w-full rounded-full bg-gray-200">
               <div
-                class="bg-{getPasswordStrengthColor()}-600 h-2 rounded-full transition-all duration-300"
+                class="bg-{passwordStrengthColor}-600 h-2 rounded-full transition-all duration-300"
                 style="width: {(Object.values(passwordStrength).filter(Boolean).length / 5) * 100}%"
               ></div>
             </div>
           </div>
 
-          <!-- Password Requirements -->
           <div class="mt-3 space-y-1">
             <Helper class="text-xs">Password must contain:</Helper>
             <div class="grid grid-cols-1 gap-1 text-xs">
@@ -227,7 +214,6 @@
           </div>
         </div>
 
-        <!-- Confirm Password Field -->
         <div>
           <Label for="confirmPassword" class="mb-2">Confirm Password *</Label>
           <div class="relative">
@@ -253,7 +239,6 @@
           </div>
         </div>
 
-        <!-- Submit Button -->
         <div>
           <Button type="submit" class="flex w-full justify-center px-4 py-2" disabled={loading}>
             {#if loading}
@@ -265,7 +250,6 @@
           </Button>
         </div>
 
-        <!-- Sign In Link -->
         <div class="text-center">
           <P class="text-sm text-gray-600 dark:text-gray-400">
             Already have an account?
