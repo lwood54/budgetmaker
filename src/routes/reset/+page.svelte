@@ -3,12 +3,15 @@
   import { enhance } from '$app/forms';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import { Route } from '$lib/constants/routes';
+  import PasswordStrength from '$lib/components/PasswordStrength.svelte';
 
   let { data, form } = $props();
 
   let showPassword = $state(false);
   let showConfirmPassword = $state(false);
   let loading = $state(false);
+  let password = $state('');
+  let confirmPassword = $state('');
 
   let currentStep = $derived(form?.step || data?.step || 'request');
   let currentToken = $derived(form?.token || data?.token);
@@ -18,9 +21,7 @@
   <title>Reset Password - Budget Maker</title>
 </svelte:head>
 
-<div
-  class="flex min-h-screen flex-col justify-center gap-8 bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
->
+<div class="flex flex-col justify-center gap-8 py-12 sm:px-6 lg:px-8">
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
     {#if currentStep === 'request'}
       <P size="3xl" class="text-primary-900 dark:text-primary-200 mb-2 text-center font-bold">
@@ -160,6 +161,7 @@
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 required
+                bind:value={password}
                 class="block w-full pr-10"
                 autocomplete="new-password"
               />
@@ -187,6 +189,7 @@
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 required
+                bind:value={confirmPassword}
                 class="block w-full pr-10"
                 autocomplete="new-password"
               />
@@ -204,20 +207,14 @@
               </button>
             </div>
           </div>
-
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            <P class="mb-1">Password must contain:</P>
-            <ul class="list-inside list-disc space-y-1 text-xs">
-              <li>At least 8 characters</li>
-              <li>One uppercase letter</li>
-              <li>One lowercase letter</li>
-              <li>One number</li>
-              <li>One special character (!@#$%^&*)</li>
-            </ul>
-          </div>
+          <PasswordStrength {password} />
 
           <div>
-            <Button type="submit" class="flex w-full justify-center px-4 py-2" disabled={loading}>
+            <Button
+              type="submit"
+              class="flex w-full justify-center px-4 py-2"
+              disabled={loading || password !== confirmPassword}
+            >
               {#if loading}
                 <Spinner class="mr-3" size="4" color="gray" />
                 Resetting Password...

@@ -1,10 +1,6 @@
 <script lang="ts">
-  import type { PageProps } from './$types';
   import { enhance } from '$app/forms';
-  import { P } from 'flowbite-svelte';
-
-  let { data }: PageProps = $props();
-
+  let { data } = $props();
   let name = $state('');
 </script>
 

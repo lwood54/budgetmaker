@@ -9,11 +9,11 @@
   <div class="absolute inset-0 bg-neutral-900/10 dark:bg-neutral-900/30"></div>
 </div>
 
-<div class="flex h-screen items-center justify-center">
+<div class="flex h-[calc(100vh-6rem)] items-center justify-center">
   <div class="text-center">
-    <P size="5xl" class="text-primary-900 dark:text-primary-200 text-center font-bold"
-      >BudgetmakerIO</P
-    >
+    <P size="5xl" class="text-primary-900 dark:text-primary-200 text-center font-bold">
+      BudgetmakerIO
+    </P>
     <P size="lg" class="text-primary-800 dark:text-primary-400 text-center font-semibold">
       Take control of your finances and let us help you plan, track, and monitor your bills.
     </P>

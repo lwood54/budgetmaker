@@ -64,7 +64,9 @@
 
 <div
   class="fixed top-0 left-0 z-50 w-full transition-all duration-300"
-  style={`background-color: ${isDarkMode ? 'rgba(15, 23, 42, ' + navbarOpacity + ')' : 'rgba(255, 255, 255, ' + navbarOpacity + ')'}; backdrop-filter: blur(${blurValue}px)`}
+  style={screenWidth >= 768
+    ? `background-color: ${isDarkMode ? 'rgba(15, 23, 42, ' + navbarOpacity + ')' : 'rgba(255, 255, 255, ' + navbarOpacity + ')'}; backdrop-filter: blur(${blurValue}px)`
+    : `background-color: ${isDarkMode ? 'var(--color-primary-900)' : 'var(--color-primary-600)'}`}
 >
   <Navbar class="bg-transparent px-2 py-3">
     <div class="flex w-full items-center justify-between">
@@ -124,10 +126,11 @@
     </div>
   </Navbar>
 </div>
-
+<!-- NAV FILLER -->
+<div class="mt-24"></div>
 <Drawer bind:hidden={isDrawerHidden}>
   <div
-    class="flex items-center justify-between border-b border-b-2 border-neutral-300 dark:border-neutral-700"
+    class="flex items-center justify-between border-b-2 border-neutral-300 dark:border-neutral-700"
   >
     <h5 id="drawer-label" class="mb-2 items-center font-semibold text-gray-500 dark:text-gray-400">
       MENU

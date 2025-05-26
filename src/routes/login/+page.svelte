@@ -14,9 +14,7 @@
   <title>Login - Budget Maker</title>
 </svelte:head>
 
-<div
-  class="flex min-h-screen w-full flex-col justify-center gap-10 bg-gray-50 py-12 sm:px-6 lg:px-8 dark:bg-gray-900"
->
+<div class="flex w-full flex-col justify-center gap-10 py-12 sm:px-6 lg:px-8">
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
     <P size="3xl" class="text-primary-900 dark:text-primary-200 mb-2 text-center font-bold">
       Welcome back
@@ -25,7 +23,7 @@
   </div>
 
   <div class="flex justify-center px-6">
-    <Card class="max-w-[600px] px-4 py-8 shadow sm:rounded-lg sm:px-10">
+    <Card class="max-w-[600px] px-4 py-8 shadow  sm:rounded-lg sm:px-10">
       {#if data?.message}
         <Alert color="green" class="mb-6">
           <span class="font-medium">Success:</span>
