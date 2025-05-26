@@ -66,7 +66,6 @@ export async function performCleanup(db: DrizzleClient) {
     ...tokenCleanup,
     timestamp: new Date().toISOString(),
   };
-  console.info('cleanup result', result);
 
   // NOTE: sending myself an email every time cleanup is attempted, should be every day at 2am
   try {

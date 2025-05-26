@@ -27,7 +27,6 @@
   let blurValue = $state(0);
   let isDarkMode = $state(false);
   let isDrawerHidden = $state(true);
-  $inspect('DATA ---> ', data);
 
   function updateScreenWidth() {
     screenWidth = window?.innerWidth;

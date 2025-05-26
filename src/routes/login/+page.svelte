@@ -4,7 +4,7 @@
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import { Route } from '$lib/constants/routes';
 
-  let { form } = $props();
+  let { form, data } = $props();
 
   let showPassword = $state(false);
   let loading = $state(false);
@@ -26,6 +26,13 @@
 
   <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
     <Card class="px-4 py-8 shadow sm:rounded-lg sm:px-10">
+      {#if data?.message}
+        <Alert color="green" class="mb-6">
+          <span class="font-medium">Success:</span>
+          {data.message}
+        </Alert>
+      {/if}
+
       {#if form?.error}
         <Alert color="red" class="mb-6">
           <span class="font-medium">Error:</span>

@@ -43,7 +43,6 @@ export const sessions = sqliteTable('sessions', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Optional: Password reset tokens table
 export const passwordResetTokens = sqliteTable('password_reset_tokens', {
   uuid: text().primaryKey(),
   userId: text('user_id')
@@ -56,7 +55,6 @@ export const passwordResetTokens = sqliteTable('password_reset_tokens', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Optional: Email verification tokens table
 export const emailVerificationTokens = sqliteTable('email_verification_tokens', {
   uuid: text().primaryKey(),
   userId: text('user_id')
@@ -69,7 +67,6 @@ export const emailVerificationTokens = sqliteTable('email_verification_tokens', 
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-// Type exports
 export type Budget = InferSelectModel<typeof budgets>;
 export type User = InferSelectModel<typeof users>;
 export type Session = InferSelectModel<typeof sessions>;

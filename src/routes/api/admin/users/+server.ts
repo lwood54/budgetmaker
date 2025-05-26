@@ -1,14 +1,10 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { getAllUsers } from '$lib/server/users';
+import { getIsAuthAdminConfirmed } from '$lib/server/auth';
 
 export const GET: RequestHandler = async ({ locals, request }) => {
   const authHeader = request.headers.get('Authorization');
-  const adminKey = env.ADMIN_API_KEY;
-  console.info('adminKey ---------->', adminKey);
-  console.info('authHeader ---------->', authHeader);
-
-  if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
+  if (!getIsAuthAdminConfirmed(authHeader)) {
     return new Response('Unauthorized', { status: 401 });
   }
 

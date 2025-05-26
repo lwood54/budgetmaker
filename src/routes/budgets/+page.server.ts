@@ -3,9 +3,7 @@ import { desc } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ locals, platform }) => {
-  console.info('PLATFORM >>> ', platform);
-
+export const load: PageServerLoad = async ({ locals }) => {
   const result = await locals.db.select().from(budgets).limit(10).orderBy(desc(budgets.createdAt));
   return {
     budgets: result,

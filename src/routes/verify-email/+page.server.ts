@@ -36,6 +36,7 @@ export const load: PageServerLoad = async ({ url, locals, cookies }) => {
           const { accessToken, sessionId, expiresAt } = await createSession(
             user.uuid,
             user.email,
+            user.isAdmin || false,
             locals.db,
           );
 
@@ -48,6 +49,7 @@ export const load: PageServerLoad = async ({ url, locals, cookies }) => {
             email: user.email,
             firstName: user.firstName,
             userId: user.uuid,
+            isAdmin: user.isAdmin || false,
             autoLoginFailed: true,
           };
         }
@@ -112,8 +114,20 @@ export const actions: Actions = {
     }
 
     try {
-      // Create session and auto-login the verified user
-      const { accessToken, sessionId, expiresAt } = await createSession(userId, email, locals.db);
+      const userResult = await locals.db
+        .select()
+        .from(users)
+        .where(eq(users.uuid, userId))
+        .limit(1);
+
+      const isAdmin = userResult[0]?.isAdmin || false;
+
+      const { accessToken, sessionId, expiresAt } = await createSession(
+        userId,
+        email,
+        isAdmin,
+        locals.db,
+      );
 
       setAuthCookies(cookies, accessToken, sessionId, expiresAt);
     } catch (error) {

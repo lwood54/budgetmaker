@@ -71,6 +71,7 @@ export const actions: Actions = {
       const { accessToken, sessionId, expiresAt } = await createSession(
         user.uuid,
         user.email,
+        user.isAdmin || false,
         locals.db,
       );
 
