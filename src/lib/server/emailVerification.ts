@@ -1,4 +1,3 @@
-// src/lib/server/emailVerification.ts
 import { randomUUID } from 'node:crypto';
 import { emailVerificationTokens, users } from './db/schema';
 import { eq } from 'drizzle-orm';
@@ -11,10 +10,8 @@ export async function createEmailVerificationToken(userId: string, db: DrizzleCl
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_EXPIRY);
 
-  // Delete any existing tokens for this user
   await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.userId, userId));
 
-  // Create new token
   await db.insert(emailVerificationTokens).values({
     uuid: randomUUID(),
     userId,
@@ -28,7 +25,7 @@ export async function createEmailVerificationToken(userId: string, db: DrizzleCl
 export async function sendVerificationEmail(
   email: string,
   userId: string,
-  firstName: string | undefined,
+  firstName: string | null | undefined,
   baseUrl: string,
   db: DrizzleClient,
 ) {
@@ -51,7 +48,6 @@ export async function sendVerificationEmail(
 
 export async function verifyEmailToken(token: string, db: DrizzleClient) {
   try {
-    // Find the token
     const tokenResult = await db
       .select()
       .from(emailVerificationTokens)
@@ -64,14 +60,11 @@ export async function verifyEmailToken(token: string, db: DrizzleClient) {
 
     const tokenData = tokenResult[0];
 
-    // Check if token is expired
     if (new Date(tokenData.expiresAt) < new Date()) {
-      // Clean up expired token
       await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.token, token));
       return { success: false, error: 'Verification token has expired' };
     }
 
-    // Update user as verified
     await db
       .update(users)
       .set({
@@ -80,7 +73,6 @@ export async function verifyEmailToken(token: string, db: DrizzleClient) {
       })
       .where(eq(users.uuid, tokenData.userId));
 
-    // Delete the used token
     await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.token, token));
 
     return { success: true, userId: tokenData.userId };
@@ -92,7 +84,6 @@ export async function verifyEmailToken(token: string, db: DrizzleClient) {
 
 export async function resendVerificationEmail(email: string, baseUrl: string, db: DrizzleClient) {
   try {
-    // Find user by email
     const userResult = await db
       .select()
       .from(users)
@@ -109,7 +100,7 @@ export async function resendVerificationEmail(email: string, baseUrl: string, db
       return { success: false, error: 'Email is already verified' };
     }
 
-    await sendVerificationEmail(user.email, user.uuid, user.firstName || undefined, baseUrl, db);
+    await sendVerificationEmail(user.email, user.uuid, user.firstName, baseUrl, db);
 
     return { success: true };
   } catch (error) {

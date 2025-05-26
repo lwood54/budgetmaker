@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { DrizzleClient } from './db';
 import { sendEmail } from './email';
 import bcrypt from 'bcryptjs';
+import { generateEmailHtml } from '$lib/components/email-templates';
 
 const RESET_TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
 
@@ -78,7 +79,7 @@ export async function resetPassword(token: string, newPassword: string, db: Driz
   try {
     const tokenVerification = await verifyPasswordResetToken(token, db);
 
-    if (!tokenVerification.success) {
+    if (!tokenVerification.success || !tokenVerification.userId) {
       return tokenVerification;
     }
 
@@ -90,7 +91,7 @@ export async function resetPassword(token: string, newPassword: string, db: Driz
         passwordHash: hashedPassword,
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(users.uuid, tokenVerification.userId!));
+      .where(eq(users.uuid, tokenVerification.userId));
 
     // NOTE: delete the used token
     await db.delete(passwordResetTokens).where(eq(passwordResetTokens.token, token));
@@ -126,58 +127,13 @@ export async function requestPasswordReset(email: string, baseUrl: string, db: D
   }
 }
 
-function generatePasswordResetEmailHtml(resetUrl: string, firstName?: string) {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reset Your Password</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">Reset Your Password</h1>
-      </div>
-      
-      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #ddd;">
-        <h2 style="color: #333; margin-top: 0;">Password Reset Request</h2>
-        
-        ${firstName ? `<p>Hi ${firstName},</p>` : '<p>Hi there,</p>'}
-        
-        <p>We received a request to reset your password for your BudgetMaker account. If you made this request, click the button below to reset your password:</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetUrl}" 
-             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    color: white; 
-                    padding: 15px 30px; 
-                    text-decoration: none; 
-                    border-radius: 5px; 
-                    font-weight: bold; 
-                    display: inline-block;
-                    font-size: 16px;">
-            Reset Password
-          </a>
-        </div>
-        
-        <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-          ${resetUrl}
-        </p>
-        
-        <p><strong>This reset link will expire in 1 hour.</strong></p>
-        
-        <p>If you didn't request a password reset, you can safely ignore this email. Your password will not be changed.</p>
-        
-        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-        
-        <p style="font-size: 14px; color: #666;">
-          Best regards,<br>
-          The BudgetMaker Team
-        </p>
-      </div>
-    </body>
-    </html>
-  `;
-}
+const generatePasswordResetEmailHtml = (resetUrl: string, firstName?: string) => {
+  return generateEmailHtml({
+    buttonTitle: 'Reset Password',
+    expireInHours: 1,
+    firstName,
+    requestLinkUrl: resetUrl,
+    requestTo: 'reset your password',
+    title: 'Reset Your Password',
+  });
+};
