@@ -22,6 +22,7 @@ export const users = sqliteTable('users', {
   firstName: text('first_name'),
   lastName: text('last_name'),
   emailVerified: integer('email_verified', { mode: 'boolean' }).default(false),
+  isAdmin: integer('is_admin', { mode: 'boolean' }).default(false),
   createdAt: text('created_at', { mode: 'text' })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -74,20 +75,3 @@ export type User = InferSelectModel<typeof users>;
 export type Session = InferSelectModel<typeof sessions>;
 export type PasswordResetToken = InferSelectModel<typeof passwordResetTokens>;
 export type EmailVerificationToken = InferSelectModel<typeof emailVerificationTokens>;
-
-//////////////////////////////////////// ORIGINAL //////////////////////////////////////////
-// import { sql, type InferSelectModel } from 'drizzle-orm';
-// import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
-
-// export const budgets = sqliteTable('budgets', {
-// 	uuid: text().primaryKey(),
-// 	name: text().notNull(),
-// 	createdAt: text('created_at', { mode: 'text' })
-// 		.notNull()
-// 		.default(sql`CURRENT_TIMESTAMP`),
-// 	updatedAt: text('updated_at', { mode: 'text' })
-// 		.notNull()
-// 		.default(sql`CURRENT_TIMESTAMP`)
-// });
-
-// export type Budget = InferSelectModel<typeof budgets>;

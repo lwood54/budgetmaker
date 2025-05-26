@@ -24,6 +24,7 @@ export interface User {
   userId: string;
   email: string;
   sessionId: string;
+  isAdmin: boolean;
 }
 
 // Token configuration
@@ -83,7 +84,7 @@ export async function createSession(userId: string, email: string, db: DrizzleCl
 export async function refreshSession(
   sessionId: string,
   db: DrizzleClient,
-): Promise<{ accessToken: string; expiresAt: Date } | null> {
+): Promise<{ accessToken: string; expiresAt: Date; isAdmin: boolean } | null> {
   // Get current session with user data
   const result = await db
     .select()
@@ -94,9 +95,10 @@ export async function refreshSession(
 
   if (result.length === 0) return null;
 
-  const { userId, email } = {
+  const { userId, email, isAdmin } = {
     userId: result[0].sessions.userId,
     email: result[0].users.email,
+    isAdmin: result[0].users.isAdmin || false,
   };
 
   // Generate new token (but keep same session)
@@ -121,7 +123,7 @@ export async function refreshSession(
     })
     .where(eq(sessions.uuid, sessionId));
 
-  return { accessToken, expiresAt };
+  return { accessToken, expiresAt, isAdmin };
 }
 
 export async function deleteSession(sessionId: string, db: DrizzleClient) {

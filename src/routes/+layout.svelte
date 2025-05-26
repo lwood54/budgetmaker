@@ -8,6 +8,7 @@
     P,
     Drawer,
     CloseButton,
+    Button,
   } from 'flowbite-svelte';
   import '../app.css';
   import { Route } from '$lib/constants/routes';
@@ -94,6 +95,9 @@
               nonActiveClass={txtNonActiveClass}
               href={Route.paydown}>Paydown</NavLi
             >
+            <form id="nav-logout" method="post" action="/logout">
+              <Button type="submit">Logout</Button>
+            </form>
           {:else}
             <NavLi
               activeClass={txtActiveClass}
@@ -115,7 +119,7 @@
           }}
           class="cursor-pointer"
         >
-          <DarkMode class="cursor-pointer text-white" size="lg" />
+          <DarkMode class="text-primary-900 cursor-pointer dark:text-white" size="lg" />
         </div>
       </div>
     </div>

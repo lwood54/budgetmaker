@@ -9,26 +9,20 @@ import {
   setAuthCookies,
   clearAuthCookies,
 } from '$lib/server/auth';
-import { createD1Client, createLibSqlClient } from '$lib/server/db';
-import { env } from '$env/dynamic/private';
-
-// Create database client for local development
-const localDb = env.DATABASE_URL ? createLibSqlClient(env.DATABASE_URL) : null;
+import { createD1Client } from '$lib/server/db';
+import { eq } from 'drizzle-orm';
+import { users } from '$lib/server/db/schema';
 
 // Database setup hook - runs first to ensure db is available
 const dbSetup: Handle = async ({ event, resolve }) => {
-  // Check for Cloudflare D1 database first (production)
+  // Check for Cloudflare D1 database (production/preview)
   if (event.platform?.env?.DB) {
     event.locals.db = createD1Client(event.platform.env.DB);
-  }
-  // Fall back to local SQLite database
-  else if (localDb) {
-    event.locals.db = localDb;
-  }
-  // No database available - this is an error
-  else {
-    console.error('No database found. Make sure DATABASE_URL is set for local development.');
-    throw new Error('Database connection not available');
+  } else {
+    // Development mode - D1 simulation should be available
+    throw new Error(
+      'D1 database not available. Make sure you are running with wrangler dev or have D1 simulation set up.',
+    );
   }
 
   return await resolve(event);
@@ -51,7 +45,7 @@ function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(
     (route) =>
       pathname === route ||
-      pathname.startsWith('/api/auth/') ||
+      pathname.startsWith('/api/') ||
       pathname.startsWith('/_app') || // SvelteKit internal routes
       pathname.includes('.'), // Static files (css, js, images, etc.)
   );
@@ -68,16 +62,29 @@ const authenticate: Handle = async ({ event, resolve }) => {
   const sessionId = event.cookies.get('session_id');
   const isPublic = isPublicRoute(event.url.pathname);
 
+  // Helper function to get user with admin status
+  const getIsUserAdmin = async (userId: string) => {
+    const userResult = await event.locals.db
+      .select()
+      .from(users)
+      .where(eq(users.uuid, userId))
+      .limit(1);
+
+    return userResult[0]?.isAdmin || false;
+  };
+
   // No authentication needed for public routes
   if (isPublic) {
     // Still try to set user if tokens exist (for conditional UI)
     if (accessToken && sessionId) {
       const tokenPayload = verifyToken(accessToken);
       if (tokenPayload) {
+        const isAdmin = await getIsUserAdmin(tokenPayload.sub);
         event.locals.user = {
           userId: tokenPayload.sub,
           email: tokenPayload.email,
           sessionId: tokenPayload.sessionId,
+          isAdmin,
         };
       }
     }
@@ -94,10 +101,12 @@ const authenticate: Handle = async ({ event, resolve }) => {
 
     if (tokenPayload) {
       // Token is valid, set user info
+      const isAdmin = await getIsUserAdmin(tokenPayload.sub);
       event.locals.user = {
         userId: tokenPayload.sub,
         email: tokenPayload.email,
         sessionId: tokenPayload.sessionId,
+        isAdmin,
       };
 
       // Check if we should refresh the token
@@ -114,6 +123,8 @@ const authenticate: Handle = async ({ event, resolve }) => {
             sessionId,
             refreshResult.expiresAt,
           );
+          // Update isAdmin status from refresh result
+          event.locals.user.isAdmin = refreshResult.isAdmin;
         } else {
           // Refresh failed - session is invalid
           console.log('Token refresh failed - clearing auth');
@@ -142,6 +153,7 @@ const authenticate: Handle = async ({ event, resolve }) => {
             userId: newTokenPayload.sub,
             email: newTokenPayload.email,
             sessionId: newTokenPayload.sessionId,
+            isAdmin: refreshResult.isAdmin,
           };
         }
       } else {
@@ -171,95 +183,3 @@ const authenticate: Handle = async ({ event, resolve }) => {
 
 // Combine hooks in sequence - dbSetup must run first
 export const handle = sequence(dbSetup, appConfig, authenticate);
-// //////////////////////////////// OLD //////////////////////////////////////////
-// // // import { redirect, type Handle } from '@sveltejs/kit';
-// // import { type Handle } from '@sveltejs/kit';
-// import { env } from '$env/dynamic/private';
-// // import { createD1Client, createLibSqlClient } from '$lib/server/db';
-// // // import { Route } from '$lib/constants/routes';
-// // import { sequence } from '@sveltejs/kit/hooks';
-// // // import { SECRET } from '$env/static/private';
-// // // import { createHeaders, decryptToken, encryptToken, getMaxTokenAge, isTokenExpired, parseToken, shouldRefreshToken } from '$lib/helpers/auth';
-
-// const db = env.DATABASE_URL ? createLibSqlClient(env.DATABASE_URL) : null;
-
-// const dbSetup: Handle = async ({ event, resolve }) => {
-//   if (event.platform?.env.DB) {
-//     event.locals.db = createD1Client(event.platform.env.DB);
-//   } else if (db) {
-//     event.locals.db = db;
-//   } else {
-//     throw new Error('No database found');
-//   }
-
-//   const response = await resolve(event);
-//   return response;
-// };
-
-// // const authenticate: Handle = async ({ event, resolve }) => {
-// //   // const token = event.cookies.get('token');
-// //   // const tokenExp = event.cookies.get('token_exp');
-// //   // const publicRoutes: string[] = [
-// //   //   Route.login,
-// //   //   Route.signup,
-// //   //   Route.home,
-// //   //   Route.reset,
-// //   //   Route.resetComplete,
-// //   //   Route.verify
-// //   // ];
-// //   // if (!token && !tokenExp && !publicRoutes.includes(event.url.pathname)) {
-// //   //   throw redirect(302, Route.login);
-// //   // }
-// //   // if (token && tokenExp) {
-// //   //   if (isTokenExpired(Number(tokenExp))) {
-// //   //     event.cookies.delete('token', { path: '/' });
-// //   //     event.cookies.delete('token_exp', { path: '/' });
-// //   //     event.locals.user = undefined;
-// //   //     throw redirect(302, Route.login);
-// //   //   }
-// //   //   if (shouldRefreshToken(Number(tokenExp))) {
-// //   //     try {
-// //   //       const response = await fetch(Api.auth.refresh(), {
-// //   //         method: 'POST',
-// //   //         headers: createHeaders({ Authorization: decryptToken(token, SECRET) })
-// //   //       });
-// //   //       if (response.ok) {
-// //   //         const { token: newToken } = await response.json();
-// //   //         const encryptedToken = encryptToken(newToken, SECRET);
-// //   //         const maxAge = getMaxTokenAge(encryptedToken);
-// //   //         event.cookies.set('token', encryptedToken.token, {
-// //   //           httpOnly: true,
-// //   //           secure: true,
-// //   //           sameSite: 'strict',
-// //   //           path: '/',
-// //   //           maxAge
-// //   //         });
-// //   //         event.cookies.set('token_exp', String(encryptedToken.exp), {
-// //   //           httpOnly: true,
-// //   //           secure: true,
-// //   //           sameSite: 'strict',
-// //   //           path: '/',
-// //   //           maxAge
-// //   //         });
-// //   //       }
-// //   //     } catch (error) {
-// //   //       console.error('Token refresh failed:', error);
-// //   //     }
-// //   //   }
-// //   //   const decryptedToken = decryptToken(token, SECRET);
-// //   //   const userData = parseToken(decryptedToken);
-// //   //   event.locals.user = {
-// //   //     userId: userData.sub,
-// //   //     email: userData.email
-// //   //   };
-// //   // }
-// //   return resolve(event);
-// // };
-
-// // export const otherStuff: Handle = async ({ event, resolve }) => {
-// //   // CAN DO OTHER STUFF...delete if nothing needed
-// //   const result = await resolve(event);
-// //   return result;
-// // };
-
-// // export const handle = sequence(dbSetup, authenticate, otherStuff);

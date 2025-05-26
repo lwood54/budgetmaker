@@ -1,14 +1,17 @@
-// src/routes/login/+page.server.ts
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { validateCredentials, createSession, setAuthCookies } from '$lib/server/auth';
 import { Route } from '$lib/constants/routes';
 
-export const load: PageServerLoad = async ({ locals }) => {
-  // Redirect if already logged in
+export const load: PageServerLoad = async ({ locals, url }) => {
   if (locals.user) {
     throw redirect(302, Route.dashboard);
   }
+
+  const message = url.searchParams.get('message');
+  return {
+    message,
+  };
 };
 
 export const actions: Actions = {
@@ -23,6 +26,7 @@ export const actions: Actions = {
       return fail(400, {
         error: 'Email and password are required',
         email: email || '',
+        needsVerification: false,
       });
     }
 
@@ -30,6 +34,7 @@ export const actions: Actions = {
       return fail(400, {
         error: 'Please enter a valid email address',
         email,
+        needsVerification: false,
       });
     }
 
@@ -37,6 +42,7 @@ export const actions: Actions = {
       return fail(400, {
         error: 'Password is required',
         email,
+        needsVerification: false,
       });
     }
 
@@ -48,6 +54,7 @@ export const actions: Actions = {
         return fail(400, {
           error: 'Invalid email or password',
           email,
+          needsVerification: false,
         });
       }
 
@@ -71,9 +78,6 @@ export const actions: Actions = {
       setAuthCookies(cookies, accessToken, sessionId, expiresAt);
 
       console.log(`User ${user.email} logged in successfully`);
-
-      // Redirect to intended page or dashboard
-      throw redirect(302, redirectTo);
     } catch (error) {
       console.error('Login error:', error);
 
@@ -81,7 +85,9 @@ export const actions: Actions = {
       return fail(500, {
         error: 'An unexpected error occurred. Please try again.',
         email,
+        needsVerification: false,
       });
     }
+    throw redirect(302, redirectTo);
   },
 };

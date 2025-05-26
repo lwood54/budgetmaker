@@ -1,11 +1,6 @@
-// src/lib/server/email.ts
 import { Resend } from 'resend';
-// import { RESEND_API_KEY } from '$env/static/private';
 import { env } from '$env/dynamic/private';
 
-const RESEND_API_KEY = env.RESEND_API_KEY;
-
-// const resend = new Resend(RESEND_API_KEY);
 function getResendClient() {
   if (!env.RESEND_API_KEY) {
     throw new Error('RESEND_API_KEY environment variable is not set');
@@ -13,20 +8,19 @@ function getResendClient() {
   return new Resend(env.RESEND_API_KEY);
 }
 
-export interface EmailOptions {
+type _EmailOptions = {
   to: string;
   subject: string;
   html: string;
   from?: string;
-}
+};
 
-// TODO: fix from when setup
 export async function sendEmail({
   to,
   subject,
   html,
   from = 'no-reply@budgetmaker.io',
-}: EmailOptions) {
+}: _EmailOptions) {
   const resend = getResendClient();
   try {
     const { data, error } = await resend.emails.send({

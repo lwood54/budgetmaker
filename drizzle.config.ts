@@ -3,11 +3,12 @@ import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 // Function to find the D1 simulation database
-function findD1Database(): string | null {
+function findD1Database(): string {
   const d1Dir = './.wrangler/state/v3/d1/miniflare-D1DatabaseObject';
 
   if (!existsSync(d1Dir)) {
-    return null;
+    // If D1 simulation doesn't exist, return a path where it will be created
+    return 'file:.wrangler/state/v3/d1/miniflare-D1DatabaseObject/db.sqlite';
   }
 
   try {
@@ -21,7 +22,8 @@ function findD1Database(): string | null {
     console.warn('Could not read D1 directory:', error);
   }
 
-  return null;
+  // Fallback path
+  return 'file:.wrangler/state/v3/d1/miniflare-D1DatabaseObject/db.sqlite';
 }
 
 // Determine which database to use
@@ -54,15 +56,3 @@ export default defineConfig({
   verbose: true,
   strict: true,
 });
-// import { defineConfig } from 'drizzle-kit';
-
-// if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
-
-// export default defineConfig({
-// 	schema: './src/lib/server/db/schema.ts',
-// 	out: './src/lib/server/db/migrations',
-// 	dialect: 'sqlite',
-// 	dbCredentials: { url: process.env.DATABASE_URL },
-// 	verbose: true,
-// 	strict: true
-// });
