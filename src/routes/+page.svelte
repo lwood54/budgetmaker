@@ -9,7 +9,7 @@
   <div class="absolute inset-0 bg-neutral-900/10 dark:bg-neutral-900/30"></div>
 </div>
 
-<div class="flex h-[calc(100vh-6rem)] items-center justify-center">
+<div class="flex h-[calc(100vh-6rem)] items-center justify-center px-4">
   <div class="text-center">
     <P size="5xl" class="text-primary-900 dark:text-primary-200 text-center font-bold">
       BudgetmakerIO
@@ -24,11 +24,11 @@
   <div class="h-24"></div>
 
   <div class="container mx-auto max-w-6xl">
-    <h2 class="mb-6 text-4xl font-bold text-neutral-900 dark:text-neutral-50">Key Features</h2>
-    <p class="mb-12 text-lg text-neutral-700 dark:text-neutral-300">
+    <P size="4xl" class="mb-6 font-bold text-neutral-900 dark:text-neutral-50">Key Features</P>
+    <P size="lg" class="mb-12 text-neutral-700 dark:text-neutral-300">
       BudgetmakerIO offers a comprehensive suite of tools to help you manage your finances
       effectively.
-    </p>
+    </P>
 
     <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
       <div
