@@ -147,10 +147,9 @@
   <div
     class="flex items-center justify-between border-b-2 border-neutral-300 dark:border-neutral-700"
   >
-    <h5 id="drawer-label" class="mb-2 items-center font-semibold text-gray-500 dark:text-gray-400">
-      MENU
-    </h5>
-    <CloseButton onclick={closeDrawer} class="mb-4 dark:text-white" />
+    <div class="flex w-full justify-end">
+      <CloseButton onclick={closeDrawer} class="mb-4 dark:text-white" />
+    </div>
   </div>
   <div class="flex flex-col gap-2 p-4">
     <ListItem onClick={closeDrawer} href={Route.home}>
