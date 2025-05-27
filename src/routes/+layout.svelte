@@ -14,6 +14,17 @@
   import { Route } from '$lib/constants/routes';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import ListItem from '$lib/components/ListItem.svelte';
+  import {
+    AdjustmentsHorizontalOutline,
+    ArrowLeftToBracketOutline,
+    ChartLineDownOutline,
+    ExclamationCircleOutline,
+    FileChartBarOutline,
+    HomeOutline,
+    UserAddOutline,
+    UserCircleOutline,
+  } from 'flowbite-svelte-icons';
 
   const txtActiveClass = 'text-primary-900 font-bold dark:text-primary-200';
   const txtNonActiveClass = 'text-primary-700 dark:text-primary-400';
@@ -60,6 +71,10 @@
       hidden = false;
     }
   });
+
+  const closeDrawer = () => {
+    isDrawerHidden = true;
+  };
 </script>
 
 <div
@@ -135,7 +150,44 @@
     <h5 id="drawer-label" class="mb-2 items-center font-semibold text-gray-500 dark:text-gray-400">
       MENU
     </h5>
-    <CloseButton onclick={() => (isDrawerHidden = true)} class="mb-4 dark:text-white" />
+    <CloseButton onclick={closeDrawer} class="mb-4 dark:text-white" />
+  </div>
+  <div class="flex flex-col gap-2 p-4">
+    <ListItem onClick={closeDrawer} href={Route.home}>
+      <HomeOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+      <P class="text-primary-700 dark:text-primary-400">Home</P>
+    </ListItem>
+    <ListItem onClick={closeDrawer} href={Route.calculators}>
+      <AdjustmentsHorizontalOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+      <P class="text-primary-700 dark:text-primary-400">Calculators</P>
+    </ListItem>
+    {#if data.user}
+      <ListItem onClick={closeDrawer} href={Route.budgets}>
+        <FileChartBarOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+        <P class="text-primary-700 dark:text-primary-400">Budgets</P>
+      </ListItem>
+      <ListItem onClick={closeDrawer} href={Route.paydown}>
+        <ChartLineDownOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+        <P class="text-primary-700 dark:text-primary-400">Paydown</P>
+      </ListItem>
+      <ListItem onClick={closeDrawer} href={Route.logout}>
+        <ArrowLeftToBracketOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+        <P class="text-primary-700 dark:text-primary-400">Logout</P>
+      </ListItem>
+    {:else}
+      <ListItem onClick={closeDrawer} href={Route.login}>
+        <UserCircleOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+        <P class="text-primary-700 dark:text-primary-400">Login</P>
+      </ListItem>
+      <ListItem onClick={closeDrawer} href={Route.signup}>
+        <UserAddOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+        <P class="text-primary-700 dark:text-primary-400">Signup</P>
+      </ListItem>
+      <ListItem onClick={closeDrawer} href={Route.reset}>
+        <ExclamationCircleOutline class="text-primary-700 dark:text-primary-400" size="lg" />
+        <P class="text-primary-700 dark:text-primary-400">Reset</P>
+      </ListItem>
+    {/if}
   </div>
 </Drawer>
 {@render children()}
