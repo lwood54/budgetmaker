@@ -144,8 +144,9 @@
 
         <div>
           <Button
+            size="lg"
             type="submit"
-            class="flex w-full justify-center px-4 py-2"
+            class="flex w-full justify-center px-6 py-3"
             disabled={loading || password !== confirmPassword}
           >
             {#if loading}

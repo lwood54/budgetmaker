@@ -82,7 +82,12 @@
           </div>
 
           <div>
-            <Button type="submit" class="flex w-full justify-center px-4 py-2" disabled={loading}>
+            <Button
+              size="lg"
+              type="submit"
+              class="flex w-full justify-center px-6 py-3"
+              disabled={loading}
+            >
               {#if loading}
                 <Spinner class="mr-3" size="4" color="gray" />
                 Sending Reset Link...
@@ -211,8 +216,9 @@
 
           <div>
             <Button
+              size="lg"
               type="submit"
-              class="flex w-full justify-center px-4 py-2"
+              class="flex w-full justify-center px-6 py-3"
               disabled={loading || password !== confirmPassword}
             >
               {#if loading}

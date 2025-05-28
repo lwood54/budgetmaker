@@ -25,6 +25,7 @@
     UserAddOutline,
     UserCircleOutline,
   } from 'flowbite-svelte-icons';
+  import { getIsDarkMode, setIsDarkMode } from '$lib/store/app.svelte';
 
   const txtActiveClass = 'text-primary-900 font-bold dark:text-primary-200';
   const txtNonActiveClass = 'text-primary-700 dark:text-primary-400';
@@ -36,8 +37,9 @@
   let scrollY = $state(0);
   let navbarOpacity = $state(0);
   let blurValue = $state(0);
-  let isDarkMode = $state(false);
+  // let isDarkMode = $state(false);
   let isDrawerHidden = $state(true);
+  let isDarkMode = $derived(getIsDarkMode());
 
   function updateScreenWidth() {
     screenWidth = window?.innerWidth;
@@ -56,7 +58,8 @@
     window?.addEventListener('resize', updateScreenWidth);
     window?.addEventListener('scroll', handleScroll);
     const themeMode = localStorage.getItem('THEME_PREFERENCE_KEY');
-    isDarkMode = themeMode !== 'light';
+    // isDarkMode = themeMode !== 'light';
+    setIsDarkMode(themeMode !== 'light');
 
     return () => {
       window?.removeEventListener('resize', updateScreenWidth);
@@ -111,8 +114,10 @@
               nonActiveClass={txtNonActiveClass}
               href={Route.paydown}>Paydown</NavLi
             >
-            <form id="nav-logout" method="post" action="/logout">
-              <Button type="submit">Logout</Button>
+            <form id="nav-logout" method="post" action={Route.logout}>
+              <Button outline class="border-none" type="submit" data-sveltekit-preload-data="off"
+                >Logout</Button
+              >
             </form>
           {:else}
             <NavLi
@@ -124,13 +129,13 @@
         </NavUl>
 
         <div
-          onclick={() => (isDarkMode = !isDarkMode)}
+          onclick={() => setIsDarkMode(!isDarkMode)}
           role="button"
           aria-label="Toggle dark mode"
           tabindex="0"
           onkeydown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
-              isDarkMode = !isDarkMode;
+              setIsDarkMode(!isDarkMode);
             }
           }}
           class="cursor-pointer"
