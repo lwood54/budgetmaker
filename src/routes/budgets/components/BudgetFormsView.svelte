@@ -36,8 +36,6 @@
       selectedCategory = undefined;
     }
   });
-
-  $inspect(selectedBudget);
 </script>
 
 <!-- <div class="flex-1"> -->

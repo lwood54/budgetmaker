@@ -1,7 +1,7 @@
 import { budgetItems, budgets, categories } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
-import { getBudgetsForUser } from '$lib/api/budgets';
+import { getBudgetsByUserId } from '$lib/api/budgets';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user?.userId) {
@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   return {
-    budgets: await getBudgetsForUser(locals.db, locals.user.userId),
+    budgets: await getBudgetsByUserId(locals.db, locals.user.userId),
   };
 };
 

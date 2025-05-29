@@ -1,85 +1,81 @@
 <script lang="ts">
   import CategoryBarChart from '$lib/components/CategoryBarChart.svelte';
-  import type { Budget } from '$lib/server/db/schema';
+  import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { Accordion, AccordionItem, Button, P, Progressbar, Select } from 'flowbite-svelte';
-  let { budget }: { budget: Budget } = $props();
 
-  const fakeCategories: { name: string; uuid: string; limit: number }[] = [
-    {
-      name: 'groceries',
-      uuid: crypto.randomUUID(),
-      limit: 1200,
-    },
-    {
-      name: 'gas',
-      uuid: crypto.randomUUID(),
-      limit: 450,
-    },
-    {
-      name: 'household fixed',
-      uuid: crypto.randomUUID(),
-      limit: 1500,
-    },
-    {
-      name: 'restaurants',
-      uuid: crypto.randomUUID(),
-      limit: 250,
-    },
-    {
-      name: 'entertainment',
-      uuid: crypto.randomUUID(),
-      limit: 400,
-    },
-  ];
+  type _Props = {
+    budget: BudgetWithRelations;
+  };
+  let { budget }: _Props = $props();
+  let currentBudget = $state<BudgetWithRelations>();
+  let selectedCategory = $state();
 
-  const fakeBudgetItems = [
-    {
-      name: 'Kroger groceries',
-      amount: 350,
-      purchaseDate: new Date(),
-      categoryId: fakeCategories[0].uuid,
-      description: 'Groceries for the week',
-      budgetId: budget.uuid,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      uuid: crypto.randomUUID(),
-    },
-    {
-      name: 'Gas',
-      amount: 100,
-      purchaseDate: new Date(),
-      categoryId: fakeCategories[1].uuid,
-      description: 'Gas for the week',
-      budgetId: budget.uuid,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      uuid: crypto.randomUUID(),
-    },
-    {
-      name: 'Movie tickets',
-      amount: 70,
-      purchaseDate: new Date(),
-      categoryId: fakeCategories[3].uuid,
-      description: 'Movie tickets for the week',
-      budgetId: budget.uuid,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      uuid: crypto.randomUUID(),
-    },
-    {
-      name: 'Cruise',
-      amount: 3000,
-      purchaseDate: new Date(),
-      categoryId: fakeCategories[4].uuid,
-      description: 'Cruise for the week',
-      budgetId: budget.uuid,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
+  const categories = $derived(budget.categories);
+  const budgetItems = $derived(budget.budgetItems);
+
+  const budgetLimit = $derived(categories.reduce((acc, category) => acc + category.limit, 0));
+  const budgetSpent = $derived(budgetItems.reduce((acc, item) => acc + item.amount, 0));
+  const details = $derived({
+    remaining: budgetLimit - budgetSpent,
+    progress: getBudgetProgress(budgetSpent, budgetLimit),
+    isOverBudget: budgetSpent > budgetLimit,
+    isWithin20Percent: budgetSpent > budgetLimit * 0.8,
+  });
+  const progressColor = $derived(() => {
+    if (details.isOverBudget) {
+      return 'red';
+    }
+    if (details.isWithin20Percent) {
+      return 'yellow';
+    }
+    return 'green';
+  });
+
+  const categoryOptions = $derived(
+    categories.map((c) => ({
+      value: c.uuid,
+      name: c.name,
+    })),
+  );
+
+  const currentCategory = $derived(() => {
+    const cat = categories.find((c) => c.uuid === selectedCategory);
+    if (!cat) return null;
+    return {
+      index: categories.findIndex((c) => c.uuid === selectedCategory),
+      ...cat,
+      remaining: cat.limit - getCategoryTotalSpent(cat.uuid),
+      totalSpent: getCategoryTotalSpent(cat.uuid),
+    };
+  });
+
+  function getBudgetProgress(budgetSpent: number, budgetLimit: number) {
+    if (budgetLimit > 0 && budgetSpent > 0) {
+      return (budgetSpent / budgetLimit) * 100;
+    }
+    if (budgetLimit > 0 && budgetSpent === 0) {
+      return 100;
+    }
+    return 0;
+  }
+
+  const handleCategoryChange = (direction: 'prev' | 'next') => {
+    const category = currentCategory();
+    if (!category) return;
+    let newIndex = category.index;
+    if (newIndex === 0 && direction === 'prev') {
+      newIndex = categories.length - 1;
+    } else if (newIndex === categories.length - 1 && direction === 'next') {
+      newIndex = 0;
+    } else {
+      newIndex = direction === 'prev' ? category.index - 1 : category.index + 1;
+    }
+    const cat = categories[newIndex];
+    selectedCategory = cat.uuid;
+  };
 
   const getCategoryTotalSpent = (categoryId: string) => {
-    return fakeBudgetItems.reduce((acc, item) => {
+    return budgetItems.reduce((acc, item) => {
       if (item.categoryId === categoryId) {
         return acc + item.amount;
       }
@@ -87,56 +83,14 @@
     }, 0);
   };
 
-  const budgetLimit = $derived(fakeCategories.reduce((acc, category) => acc + category.limit, 0));
-  const budgetSpent = $derived(fakeBudgetItems.reduce((acc, item) => acc + item.amount, 0));
-  const details = $derived({
-    remaining: budgetLimit - budgetSpent,
-    progress: (budgetSpent / (budgetLimit ?? 1)) * 100,
-    isOverBudget: budgetSpent > budgetLimit,
-    isWithin10Percent: budgetSpent > budgetLimit * 0.8,
-  });
-  const progressColor = $derived(() => {
-    if (details.isOverBudget) {
-      return 'red';
+  $effect(() => {
+    if (currentBudget !== budget) {
+      currentBudget = budget;
+      if (budget.categories.length > 0) {
+        selectedCategory = budget.categories[0].uuid;
+      }
     }
-    if (details.isWithin10Percent) {
-      return 'yellow';
-    }
-    return 'green';
   });
-
-  const categoryOptions = $derived(
-    fakeCategories.map((c) => ({
-      value: c.uuid,
-      name: c.name,
-    })),
-  );
-  let selectedCategory = $state(fakeCategories[0].uuid);
-  const currentCategory = $derived(() => {
-    const cat = fakeCategories.find((c) => c.uuid === selectedCategory);
-    if (!cat) return null;
-    return {
-      index: fakeCategories.findIndex((c) => c.uuid === selectedCategory),
-      ...cat,
-      remaining: cat.limit - getCategoryTotalSpent(cat.uuid),
-      totalSpent: getCategoryTotalSpent(cat.uuid),
-    };
-  });
-
-  const handleCategoryChange = (direction: 'prev' | 'next') => {
-    const category = currentCategory();
-    if (!category) return;
-    let newIndex = category.index;
-    if (newIndex === 0 && direction === 'prev') {
-      newIndex = fakeCategories.length - 1;
-    } else if (newIndex === fakeCategories.length - 1 && direction === 'next') {
-      newIndex = 0;
-    } else {
-      newIndex = direction === 'prev' ? category.index - 1 : category.index + 1;
-    }
-    const cat = fakeCategories[newIndex];
-    selectedCategory = cat.uuid;
-  };
 </script>
 
 <div class="flex flex-col gap-4">
@@ -191,7 +145,7 @@
       {#snippet header()}
         <P class="text-primary-900 dark:text-primary-200 font-semibold" size="2xl">Purchases</P>
       {/snippet}
-      {#each fakeBudgetItems as item}
+      {#each budgetItems as item}
         <div>
           <P>{item.name}</P>
           <P>{item.amount}</P>

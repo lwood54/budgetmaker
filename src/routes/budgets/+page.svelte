@@ -1,7 +1,7 @@
 <script lang="ts">
   import ListItem from '$lib/components/ListItem.svelte';
   import { Route } from '$lib/constants/routes';
-  import type { Budget } from '$lib/server/db/schema';
+  import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { Button, P, Search } from 'flowbite-svelte';
   import { CloseOutline } from 'flowbite-svelte-icons';
   import BudgetView from './components/BudgetView.svelte';
@@ -9,9 +9,7 @@
   let { data } = $props();
   let search = $state('');
   let displayBudgets = $derived(data.budgets.filter((budget) => budget.name.includes(search)));
-  let selectedBudget = $state<Budget>();
-
-  $inspect(data);
+  let selectedBudget = $state<BudgetWithRelations>();
 </script>
 
 <div class="@container flex gap-4 p-4">
