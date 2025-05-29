@@ -27,8 +27,8 @@ export type User = {
 };
 
 // NOTE: Token configuration (in milliseconds)
-const ACCESS_TOKEN_EXPIRY = 15 * 60 * 1000; // 15 minutes (in milliseconds)
-const REFRESH_THRESHOLD = 5 * 60 * 1000; // Refresh when 5 minutes left (in milliseconds)
+const ACCESS_TOKEN_EXPIRY = 60 * 60 * 1000; // 60 minutes (in milliseconds)
+const REFRESH_THRESHOLD = 10 * 60 * 1000; // Refresh when 10 minutes left (in milliseconds)
 const SESSION_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days for session validity (in milliseconds)
 
 export function generateTokens(userId: string, email: string, isAdmin: boolean) {
