@@ -15,6 +15,40 @@ export const budgets = sqliteTable('budgets', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const budgetItems = sqliteTable('budget_items', {
+  amount: integer('amount').notNull(), // 100 === $1.00
+  budgetId: text('budget_id')
+    .notNull()
+    .references(() => budgets.uuid, { onDelete: 'cascade' }),
+  categoryId: text('category_id')
+    .notNull()
+    .references(() => categories.uuid, { onDelete: 'cascade' }),
+  createdAt: text('created_at', { mode: 'text' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at', { mode: 'text' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  purchaseDate: text('purchase_date', { mode: 'text' }).notNull(),
+  uuid: text().primaryKey(),
+  name: text().notNull(),
+});
+
+export const categories = sqliteTable('categories', {
+  budgetId: text('budget_id')
+    .notNull()
+    .references(() => budgets.uuid, { onDelete: 'cascade' }),
+  createdAt: text('created_at', { mode: 'text' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at', { mode: 'text' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  name: text().notNull(),
+  limit: integer('limit').notNull(), // 100 === $1.00
+  uuid: text().primaryKey(),
+});
+
 export const users = sqliteTable('users', {
   uuid: text().primaryKey(),
   email: text().notNull().unique(),

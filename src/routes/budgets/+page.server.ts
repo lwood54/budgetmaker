@@ -1,4 +1,4 @@
-import { budgets } from '$lib/server/db/schema';
+import { budgets, categories } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import { getBudgets } from '$lib/api/budgets';
@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ locals, request }) => {
+  addBudget: async ({ locals, request }) => {
     const formData = await request.formData();
     const name = formData.get('name');
     const userId = locals.user?.userId;
@@ -28,5 +28,24 @@ export const actions: Actions = {
     });
 
     return { success: true };
+  },
+  addCategory: async ({ locals, request }) => {
+    const formData = await request.formData();
+    const name = formData.get('name') as string;
+    const limit = Number(formData.get('limit')) as number;
+    const budgetId = formData.get('budgetId') as string;
+
+    if (!budgetId) {
+      return fail(400, { error: 'Budget is required' });
+    }
+
+    await locals.db.insert(categories).values({
+      uuid: crypto.randomUUID(),
+      name: name as string,
+      limit: limit as number,
+      budgetId: budgetId as string,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   },
 };

@@ -6,13 +6,12 @@
   import { Button, Input, P, Search } from 'flowbite-svelte';
   import { CloseOutline } from 'flowbite-svelte-icons';
   import BudgetView from './components/BudgetView.svelte';
+  import BudgetFormsView from './components/BudgetFormsView.svelte';
   let { data } = $props();
   let name = $state('');
   let search = $state('');
   let displayBudgets = $derived(data.budgets.filter((budget) => budget.name.includes(search)));
   let selectedBudget = $state<Budget>();
-
-  // TODO: MAX WIDTH WITH BUDGET VIEW IS 900px
 </script>
 
 <div class="@container flex gap-4 p-4">
@@ -54,14 +53,8 @@
     </div>
   </div>
   <div class="flex flex-1 flex-col gap-4 @max-[900px]:hidden">
-    <form method="post" use:enhance>
-      <div class="flex items-center gap-4">
-        <Input size="lg" id="name" name="name" bind:value={name} placeholder="Add New Budget" />
-        <Button type="submit" class="min-w-40 p-4">Add New Budget</Button>
-      </div>
-    </form>
     <div
-      class="flex h-[calc(100vh-15rem)] flex-col rounded-lg bg-neutral-400 p-4 dark:border-neutral-700 dark:bg-neutral-600"
+      class="flex h-[calc(100vh-11rem)] flex-col rounded-lg bg-neutral-400 p-4 dark:border-neutral-700 dark:bg-neutral-600"
     >
       {#if selectedBudget}
         <div class="mb-4 flex flex-col gap-4 overflow-y-auto">
@@ -84,7 +77,7 @@
           <BudgetView budget={selectedBudget} />
         </div>
       {:else}
-        <P>Select a budget to view</P>
+        <BudgetFormsView budgets={data.budgets} />
       {/if}
     </div>
   </div>
