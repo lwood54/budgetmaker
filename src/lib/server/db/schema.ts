@@ -1,5 +1,6 @@
 import { sql, type InferSelectModel } from 'drizzle-orm';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { relations } from 'drizzle-orm';
 
 export const budgets = sqliteTable('budgets', {
   uuid: text().primaryKey(),
@@ -101,8 +102,41 @@ export const emailVerificationTokens = sqliteTable('email_verification_tokens', 
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Add relations
+export const budgetsRelations = relations(budgets, ({ many }) => ({
+  categories: many(categories),
+  budgetItems: many(budgetItems),
+}));
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  budget: one(budgets, {
+    fields: [categories.budgetId],
+    references: [budgets.uuid],
+  }),
+  budgetItems: many(budgetItems),
+}));
+
+export const budgetItemsRelations = relations(budgetItems, ({ one }) => ({
+  budget: one(budgets, {
+    fields: [budgetItems.budgetId],
+    references: [budgets.uuid],
+  }),
+  category: one(categories, {
+    fields: [budgetItems.categoryId],
+    references: [categories.uuid],
+  }),
+}));
+
 export type Budget = InferSelectModel<typeof budgets>;
 export type User = InferSelectModel<typeof users>;
 export type Session = InferSelectModel<typeof sessions>;
 export type PasswordResetToken = InferSelectModel<typeof passwordResetTokens>;
 export type EmailVerificationToken = InferSelectModel<typeof emailVerificationTokens>;
+export type Category = InferSelectModel<typeof categories>;
+export type BudgetItem = InferSelectModel<typeof budgetItems>;
+
+// New type for budget with relations
+export type BudgetWithRelations = Budget & {
+  categories: Category[];
+  budgetItems: BudgetItem[];
+};

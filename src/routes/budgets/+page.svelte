@@ -1,17 +1,17 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
   import ListItem from '$lib/components/ListItem.svelte';
   import { Route } from '$lib/constants/routes';
   import type { Budget } from '$lib/server/db/schema';
-  import { Button, Input, P, Search } from 'flowbite-svelte';
+  import { Button, P, Search } from 'flowbite-svelte';
   import { CloseOutline } from 'flowbite-svelte-icons';
   import BudgetView from './components/BudgetView.svelte';
   import BudgetFormsView from './components/BudgetFormsView.svelte';
   let { data } = $props();
-  let name = $state('');
   let search = $state('');
   let displayBudgets = $derived(data.budgets.filter((budget) => budget.name.includes(search)));
   let selectedBudget = $state<Budget>();
+
+  $inspect(data);
 </script>
 
 <div class="@container flex gap-4 p-4">
