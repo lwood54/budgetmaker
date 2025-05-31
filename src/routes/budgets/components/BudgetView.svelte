@@ -2,6 +2,9 @@
   import CategoryBarChart from '$lib/components/CategoryBarChart.svelte';
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { Accordion, AccordionItem, Button, P, Progressbar, Select } from 'flowbite-svelte';
+  import AddCategory from './AddCategory.svelte';
+  import AddBudgetItem from './AddBudgetItem.svelte';
+  import { formatCurrency } from '$lib/utils/money';
 
   type _Props = {
     budget: BudgetWithRelations;
@@ -84,7 +87,7 @@
   };
 
   $effect(() => {
-    if (currentBudget !== budget) {
+    if (currentBudget?.uuid !== budget.uuid) {
       currentBudget = budget;
       if (budget.categories.length > 0) {
         selectedCategory = budget.categories[0].uuid;
@@ -93,66 +96,96 @@
   });
 </script>
 
-<div class="flex flex-col gap-4">
+<div class="@container flex flex-col gap-4 overflow-y-auto">
   <div class="flex flex-col gap-2">
     <P class="text-primary-900 dark:text-primary-200 text-right font-semibold" size="sm">
-      Budget Limit: {budgetLimit}
+      Budget Limit: {formatCurrency(budgetLimit)}
     </P>
     <Progressbar progress={details.progress} color={progressColor()} />
   </div>
-  <div class="flex justify-evenly gap-4 rounded-lg bg-neutral-200 p-4 dark:bg-neutral-800">
+  <div
+    class="flex flex-col justify-evenly gap-4 rounded-lg bg-neutral-200 p-4 @sm:flex-row dark:bg-neutral-800"
+  >
     <div class="flex flex-1 items-center justify-start gap-2">
-      <P size="sm">Budget Spent:</P>
-      <P size="lg" class="text-green-500 dark:text-green-400">{budgetSpent}</P>
+      <P size="sm">Spent:</P>
+      <P size="lg" class="text-green-500 dark:text-green-400">{formatCurrency(budgetSpent)}</P>
     </div>
-    <div class="flex flex-1 items-center justify-end gap-2">
-      <P size="sm">Budget Remaining:</P>
+    <div class="flex flex-1 items-center justify-start gap-2 @sm:justify-end">
+      <P size="sm">Remaining:</P>
       <P size="lg" class={`dark:text-${progressColor()}-500 text-${progressColor()}-500`}>
-        {details.remaining}
+        {formatCurrency(details.remaining)}
       </P>
     </div>
   </div>
-  <div class="flex flex-col justify-evenly rounded-lg bg-neutral-200 p-4 dark:bg-neutral-800">
-    {#if currentCategory()}
-      <CategoryBarChart
-        limit={currentCategory()?.limit ?? 0}
-        remaining={currentCategory()?.remaining ?? 0}
-        spent={currentCategory()?.totalSpent ?? 0}
-      />
-      <P class="text-primary-900 dark:text-primary-200 text-center font-semibold">
-        {currentCategory.name}
-      </P>
-    {/if}
-    <div class="flex justify-between">
-      <Button
-        color="gray"
-        size="xs"
-        class="rounded-full"
-        onclick={() => handleCategoryChange('prev')}>Prev</Button
-      >
-      <Select class="w-32" items={categoryOptions} bind:value={selectedCategory} />
-      <Button
-        color="gray"
-        size="xs"
-        class="rounded-full"
-        onclick={() => handleCategoryChange('next')}>Next</Button
-      >
-    </div>
-  </div>
-
+  {#if categories.length > 0}
+    <Accordion flush>
+      <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
+        {#snippet header()}
+          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Log Purchase</P>
+        {/snippet}
+        <AddBudgetItem budgets={[budget]} shouldHideBudgetSelect />
+      </AccordionItem>
+    </Accordion>
+  {/if}
   <Accordion flush>
     <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
       {#snippet header()}
-        <P class="text-primary-900 dark:text-primary-200 font-semibold" size="2xl">Purchases</P>
+        <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Add Category</P>
       {/snippet}
-      {#each budgetItems as item}
-        <div>
-          <P>{item.name}</P>
-          <P>{item.amount}</P>
-          <P>{item.purchaseDate}</P>
-          <P>{item.categoryId}</P>
-        </div>
-      {/each}
+      <AddCategory budgets={[budget]} shouldHideBudgetSelect />
     </AccordionItem>
   </Accordion>
+  {#if currentCategory()}
+    <Accordion flush>
+      <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
+        {#snippet header()}
+          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg"
+            >Category Charts</P
+          >
+        {/snippet}
+        <div
+          class="@container flex flex-col justify-evenly rounded-lg bg-neutral-200 p-4 dark:bg-neutral-800"
+        >
+          <CategoryBarChart
+            limit={currentCategory()?.limit ?? 0}
+            remaining={currentCategory()?.remaining ?? 0}
+            spent={currentCategory()?.totalSpent ?? 0}
+          />
+          <div class="flex justify-between">
+            <Button
+              color="gray"
+              size="xs"
+              class="rounded-full"
+              onclick={() => handleCategoryChange('prev')}>Prev</Button
+            >
+            <Select class="w-32" items={categoryOptions} bind:value={selectedCategory} />
+            <Button
+              color="gray"
+              size="xs"
+              class="rounded-full"
+              onclick={() => handleCategoryChange('next')}>Next</Button
+            >
+          </div>
+        </div>
+      </AccordionItem>
+    </Accordion>
+  {/if}
+
+  {#if budgetItems.length > 0}
+    <Accordion flush>
+      <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
+        {#snippet header()}
+          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Purchases</P>
+        {/snippet}
+        {#each budgetItems as item}
+          <div>
+            <P>{item.name}</P>
+            <P>{formatCurrency(item.amount)}</P>
+            <P>{item.purchaseDate}</P>
+            <P>{item.categoryId}</P>
+          </div>
+        {/each}
+      </AccordionItem>
+    </Accordion>
+  {/if}
 </div>

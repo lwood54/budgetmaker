@@ -2,6 +2,7 @@ import { budgetItems, budgets, categories } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import { getBudgetsByUserId } from '$lib/api/budgets';
+import { dollarsToCents, parseUserInputToCents } from '$lib/utils/money';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user?.userId) {
@@ -36,18 +37,23 @@ export const actions: Actions = {
   addCategory: async ({ locals, request }) => {
     const formData = await request.formData();
     const name = formData.get('name') as string;
-    const limit = Number(formData.get('limit')) as number;
+    const limitInput = formData.get('limit') as string;
     const budgetId = formData.get('budgetId') as string;
 
     if (!budgetId) {
       return fail(400, { error: 'Budget is required' });
     }
 
+    const limitCents = parseUserInputToCents(limitInput);
+    if (limitCents === null) {
+      return fail(400, { error: 'Invalid limit amount' });
+    }
+
     await locals.db.insert(categories).values({
       uuid: crypto.randomUUID(),
-      name: name as string,
-      limit: limit as number,
-      budgetId: budgetId as string,
+      name: name,
+      limit: limitCents,
+      budgetId: budgetId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -55,7 +61,7 @@ export const actions: Actions = {
   addBudgetItem: async ({ locals, request }) => {
     const formData = await request.formData();
     const name = formData.get('name') as string;
-    const amount = Number(formData.get('amount')) as number;
+    const amountInput = formData.get('amount') as string;
     const budgetId = formData.get('budgetId') as string;
     const categoryId = formData.get('categoryId') as string;
     const purchaseDate = formData.get('purchaseDate') as string;
@@ -64,8 +70,13 @@ export const actions: Actions = {
       return fail(400, { error: 'Budget and category are required' });
     }
 
+    const amountCents = parseUserInputToCents(amountInput);
+    if (amountCents === null) {
+      return fail(400, { error: 'Invalid amount' });
+    }
+
     await locals.db.insert(budgetItems).values({
-      amount,
+      amount: amountCents,
       budgetId,
       categoryId,
       name,
