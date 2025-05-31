@@ -10,6 +10,46 @@
   let search = $state('');
   let displayBudgets = $derived(data.budgets.filter((budget) => budget.name.includes(search)));
   let selectedBudget = $state<BudgetWithRelations>();
+  let selectedBudgetDataJson = $state<string>('');
+
+  const deepCompareBudget = (
+    selectedBudgetDataJson: string,
+    selectedBudget?: BudgetWithRelations,
+  ) => {
+    const relevantData = {
+      categories: selectedBudget?.categories,
+      budgetItems: selectedBudget?.budgetItems,
+      name: selectedBudget?.name,
+      updatedAt: selectedBudget?.updatedAt,
+    };
+
+    const currentDataJson = JSON.stringify(relevantData);
+    return {
+      isDifferent: selectedBudgetDataJson !== currentDataJson,
+      currentDataJson,
+    };
+  };
+
+  $effect(() => {
+    if (selectedBudget) {
+      const updatedSelectedBudget = data.budgets.find((b) => b.uuid === selectedBudget?.uuid);
+      if (updatedSelectedBudget) {
+        const { isDifferent, currentDataJson } = deepCompareBudget(
+          selectedBudgetDataJson,
+          updatedSelectedBudget,
+        );
+        if (isDifferent) {
+          selectedBudget = structuredClone(updatedSelectedBudget);
+        }
+        selectedBudgetDataJson = currentDataJson;
+        return;
+      }
+      selectedBudget = undefined;
+      selectedBudgetDataJson = '';
+      return;
+    }
+    selectedBudgetDataJson = '';
+  });
 </script>
 
 <div class="@container flex gap-4 p-4">

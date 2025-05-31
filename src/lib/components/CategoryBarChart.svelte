@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Chart } from 'flowbite-svelte';
+  import { Chart, P } from 'flowbite-svelte';
   import { getIsDarkMode } from '$lib/store/app.svelte';
   import { browser } from '$app/environment';
+  import { formatCurrency } from '$lib/utils/money';
 
   const { limit, remaining, spent }: { limit: number; remaining: number; spent: number } = $props();
 
@@ -15,7 +16,7 @@
   }
 
   // Reactive colors based on dark mode state
-  const chartColors = $derived(() => {
+  const chartColors = $derived((useTWClass?: boolean) => {
     if (!browser) {
       // Fallback colors for SSR
       return {
@@ -28,6 +29,16 @@
       };
     }
 
+    if (useTWClass) {
+      return {
+        spent: 'text-accent-600 dark:text-accent-400',
+        limit: 'text-gray-600 dark:text-gray-400',
+        remaining: 'text-secondary-600 dark:text-secondary-400',
+        overBudget: 'text-red-600 dark:text-red-400',
+        text: 'text-font-default dark:text-font-default',
+        grid: 'border-gray-600 dark:border-gray-400',
+      };
+    }
     return {
       spent: isDarkMode
         ? getCSSCustomProperty('--color-accent-400') // Lighter orange for dark mode
@@ -79,6 +90,23 @@
   });
 </script>
 
+<div class="flex flex-col gap-2 @md:flex-row">
+  <div class="flex items-center gap-2">
+    <P size="sm">Spent:</P>
+    <P size="sm" class={`${chartColors(true).spent}`}>
+      {formatCurrency(spent)}
+    </P>
+  </div>
+  <div class="flex items-center gap-2">
+    <P size="sm">Limit:</P>
+    <P size="sm" class={`${chartColors(true).limit}`}>{formatCurrency(limit)}</P>
+  </div>
+  <div class="flex items-center gap-2">
+    <P size="sm">Remaining:</P>
+    <P size="sm" class={`${chartColors(true).remaining}`}>{formatCurrency(remaining)}</P>
+  </div>
+</div>
+
 <Chart
   options={{
     series: series(),
@@ -114,10 +142,8 @@
     },
     dataLabels: {
       enabled: true,
-      // @ts-ignore - ApexCharts supports array return but types don't reflect this
-      formatter: function (val: number, opts) {
-        // return [opts.w.globals.seriesNames[opts.seriesIndex], `$${val}`]; // NOTE: use array to stack labels
-        return `$${val}`;
+      formatter: function (val: number) {
+        return formatCurrency(val);
       },
       style: {
         colors: [chartColors().text],
@@ -141,7 +167,7 @@
     yaxis: {
       labels: {
         formatter: function (val: number) {
-          return `$${val}`;
+          return formatCurrency(val);
         },
         style: {
           colors: chartColors().text,
@@ -151,7 +177,7 @@
     tooltip: {
       y: {
         formatter: function (val: number) {
-          return `$${val}`;
+          return formatCurrency(val);
         },
       },
     },
