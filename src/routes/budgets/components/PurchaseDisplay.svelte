@@ -16,11 +16,12 @@
   });
   let isEdit = $state(false);
   const budgets = $derived(page.data.budgets);
+  const containerClass = $derived(() => {
+    return `dark:bg-primary-900 bg-primary-200 @container relative flex justify-evenly gap-2 rounded-lg ${isEdit ? 'p-0' : 'p-4'}`;
+  });
 </script>
 
-<div
-  class="dark:bg-primary-900 bg-primary-200 @container relative flex justify-evenly gap-2 rounded-lg p-12"
->
+<div class={containerClass()}>
   <div class="absolute top-0 right-0 m-2">
     <Button color="gray" size="sm" class="rounded-full" onclick={() => (isEdit = !isEdit)}>
       {#if isEdit}
