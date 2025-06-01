@@ -7,7 +7,7 @@
 </script>
 
 <div
-  class="m-4 flex flex-col rounded-lg bg-neutral-400 p-4 @min-[900px]:w-sm dark:border-neutral-700 dark:bg-neutral-600"
+  class="m-4 flex flex-col rounded-lg bg-neutral-400 p-4 @min-[650px]:w-sm dark:border-neutral-700 dark:bg-neutral-600"
 >
   <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">
     {data.budget?.name}

@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import { getBudgetsByUserId } from '$lib/api/budgets';
 import { dollarsToCents, parseUserInputToCents } from '$lib/utils/money';
+import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user?.userId) {
@@ -85,5 +86,30 @@ export const actions: Actions = {
       updatedAt: new Date().toISOString(),
       uuid: crypto.randomUUID(),
     });
+  },
+  editBudgetItem: async ({ locals, request, url }) => {
+    const formData = await request.formData();
+    const budgetItemId = url.searchParams.get('budgetItemUUID');
+    const name = formData.get('name') as string;
+    const amountInput = formData.get('amount') as string;
+    const purchaseDate = formData.get('purchaseDate') as string;
+
+    if (!budgetItemId || !name || !amountInput || !purchaseDate) {
+      return fail(400, { error: 'BudgetItem is required' });
+    }
+
+    const amountCents = parseUserInputToCents(amountInput);
+    if (amountCents === null) {
+      return fail(400, { error: 'Invalid amount' });
+    }
+
+    await locals.db
+      .update(budgetItems)
+      .set({
+        name,
+        amount: amountCents,
+        purchaseDate,
+      })
+      .where(eq(budgetItems.uuid, budgetItemId));
   },
 };

@@ -5,6 +5,8 @@
   import AddCategory from './AddCategory.svelte';
   import AddBudgetItem from './AddBudgetItem.svelte';
   import { formatCurrency } from '$lib/utils/money';
+  import { ChevronDoubleLeftOutline, ChevronDoubleRightOutline } from 'flowbite-svelte-icons';
+  import PurchaseDisplay from './PurchaseDisplay.svelte';
 
   type _Props = {
     budget: BudgetWithRelations;
@@ -121,7 +123,9 @@
     <Accordion flush>
       <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
         {#snippet header()}
-          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Log Purchase</P>
+          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg"
+            >Record Purchase</P
+          >
         {/snippet}
         <AddBudgetItem budgets={[budget]} shouldHideBudgetSelect />
       </AccordionItem>
@@ -151,20 +155,30 @@
             remaining={currentCategory()?.remaining ?? 0}
             spent={currentCategory()?.totalSpent ?? 0}
           />
-          <div class="flex justify-between">
-            <Button
-              color="gray"
-              size="xs"
-              class="rounded-full"
-              onclick={() => handleCategoryChange('prev')}>Prev</Button
-            >
+          <div class="flex flex-1 justify-center gap-2 @sm:justify-between">
+            <div class="hidden @sm:flex">
+              <Button
+                color="gray"
+                size="xs"
+                outline
+                class="w-full flex-1 rounded-full"
+                onclick={() => handleCategoryChange('prev')}
+              >
+                <ChevronDoubleLeftOutline />
+              </Button>
+            </div>
             <Select class="w-32" items={categoryOptions} bind:value={selectedCategory} />
-            <Button
-              color="gray"
-              size="xs"
-              class="rounded-full"
-              onclick={() => handleCategoryChange('next')}>Next</Button
-            >
+            <div class="hidden @sm:flex">
+              <Button
+                color="gray"
+                size="xs"
+                outline
+                class="rounded-full"
+                onclick={() => handleCategoryChange('next')}
+              >
+                <ChevronDoubleRightOutline />
+              </Button>
+            </div>
           </div>
         </div>
       </AccordionItem>
@@ -175,16 +189,15 @@
     <Accordion flush>
       <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
         {#snippet header()}
-          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Purchases</P>
+          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg"
+            >Past Purchases</P
+          >
         {/snippet}
-        {#each budgetItems as item}
-          <div>
-            <P>{item.name}</P>
-            <P>{formatCurrency(item.amount)}</P>
-            <P>{item.purchaseDate}</P>
-            <P>{item.categoryId}</P>
-          </div>
-        {/each}
+        <div class="flex flex-col gap-4">
+          {#each budgetItems as item}
+            <PurchaseDisplay budgetItem={item} {budget} />
+          {/each}
+        </div>
       </AccordionItem>
     </Accordion>
   {/if}

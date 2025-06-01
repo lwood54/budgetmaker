@@ -53,10 +53,13 @@
 </script>
 
 <div class="@container flex gap-4 p-4">
-  <div class="flex flex-col gap-4 @max-[900px]:w-full dark:border-neutral-700">
+  <div class="flex flex-col gap-4 @max-[650px]:w-full dark:border-neutral-700">
+    <div class="@min-[650px]:hidden">
+      <BudgetFormsView budgets={data.budgets} />
+    </div>
     <Search clearable clearableOnClick={() => (search = '')} bind:value={search} />
     <div
-      class="flex h-[calc(100vh-15rem)] flex-col rounded-lg bg-neutral-400 p-4 @min-[900px]:w-sm dark:border-neutral-700 dark:bg-neutral-600"
+      class="flex h-[calc(100vh-15rem)] flex-col rounded-lg bg-neutral-400 p-4 @min-[650px]:w-sm dark:border-neutral-700 dark:bg-neutral-600"
     >
       <div class="mb-4 flex flex-col gap-4">
         <P size="2xl" class="text-primary-900 dark:text-primary-200">Budgets</P>
@@ -64,7 +67,7 @@
       </div>
       <div class="flex flex-1 flex-col gap-2 overflow-y-auto">
         {#each displayBudgets as budget}
-          <div class="@min-[900px]:hidden">
+          <div class="@min-[650px]:hidden">
             <ListItem
               href={Route.budget(budget.uuid)}
               isActive={selectedBudget?.uuid === budget.uuid}
@@ -75,7 +78,7 @@
               >
             </ListItem>
           </div>
-          <div class="@max-[900px]:hidden">
+          <div class="@max-[650px]:hidden">
             <ListItem
               onClick={() => (selectedBudget = budget)}
               isActive={selectedBudget?.uuid === budget.uuid}
@@ -90,7 +93,7 @@
       </div>
     </div>
   </div>
-  <div class="flex flex-1 flex-col gap-4 @max-[900px]:hidden">
+  <div class="flex flex-1 flex-col gap-4 @max-[650px]:hidden">
     <div
       class="flex h-[calc(100vh-11rem)] flex-col rounded-lg bg-neutral-400 p-4 dark:border-neutral-700 dark:bg-neutral-600"
     >

@@ -28,7 +28,7 @@
   <TabItem title="Add Category">
     <AddCategory {budgets} />
   </TabItem>
-  <TabItem title="Log Purchase">
+  <TabItem title="Record Purchase">
     <AddBudgetItem {budgets} />
   </TabItem>
 </Tabs>
