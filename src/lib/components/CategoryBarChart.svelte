@@ -101,10 +101,19 @@
     <P size="sm">Limit:</P>
     <P size="sm" class={`${chartColors(true).limit}`}>{formatCurrency(limit)}</P>
   </div>
-  <div class="flex items-center gap-2">
-    <P size="sm">Remaining:</P>
-    <P size="sm" class={`${chartColors(true).remaining}`}>{formatCurrency(remaining)}</P>
-  </div>
+  {#if remaining >= 0}
+    <div class="flex items-center gap-2">
+      <P size="sm">Remaining:</P>
+      <P size="sm" class={`${chartColors(true).remaining}`}>{formatCurrency(remaining)}</P>
+    </div>
+  {:else}
+    <div class="flex items-center gap-2">
+      <P size="sm">Over Budget:</P>
+      <P size="sm" class={`${chartColors(true).overBudget}`}
+        >{formatCurrency(Math.abs(remaining))}</P
+      >
+    </div>
+  {/if}
 </div>
 
 <Chart
