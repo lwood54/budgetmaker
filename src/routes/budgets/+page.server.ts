@@ -59,6 +59,31 @@ export const actions: Actions = {
       updatedAt: new Date().toISOString(),
     });
   },
+  editCategory: async ({ locals, request, url }) => {
+    const formData = await request.formData();
+    const categoryId = url.searchParams.get('categoryUUID');
+    const name = formData.get('name') as string;
+    const limitInput = formData.get('limit') as string;
+    const budgetId = formData.get('budgetId') as string;
+
+    if (!categoryId || !name || !limitInput || !budgetId) {
+      return fail(400, { error: 'Category is required' });
+    }
+
+    const limitCents = parseUserInputToCents(limitInput);
+    if (limitCents === null) {
+      return fail(400, { error: 'Invalid limit amount' });
+    }
+
+    await locals.db
+      .update(categories)
+      .set({
+        name,
+        limit: limitCents,
+        budgetId,
+      })
+      .where(eq(categories.uuid, categoryId));
+  },
   addBudgetItem: async ({ locals, request }) => {
     const formData = await request.formData();
     const name = formData.get('name') as string;

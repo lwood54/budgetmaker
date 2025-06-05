@@ -1,23 +1,29 @@
 <script lang="ts">
-  import type { BudgetItem, BudgetWithRelations } from '$lib/server/db/schema';
+  import type { BudgetWithRelations, Category } from '$lib/server/db/schema';
   import { formatCurrency } from '$lib/utils/money';
   import { Button, Label, P } from 'flowbite-svelte';
-  import AddBudgetItem from './AddBudgetItem.svelte';
   import { page } from '$app/state';
   import { CloseOutline, EditOutline } from 'flowbite-svelte-icons';
+  import AddCategory from './AddCategory.svelte';
+  import { getCategoryTotalSpent } from '$lib/helpers/budgets';
 
   type _Props = {
     budget: BudgetWithRelations;
-    budgetItem: BudgetItem;
+    category: Category;
+    shouldHideBudgetSelect?: boolean;
   };
-  let { budget, budgetItem }: _Props = $props();
-  const category = $derived(() => {
-    return budget.categories.find((c) => c.uuid === budgetItem.categoryId);
-  });
+  let { budget, category, shouldHideBudgetSelect = false }: _Props = $props();
+
   let isEdit = $state(false);
   const budgets = $derived(page.data.budgets);
+  const totalSpent = $derived(getCategoryTotalSpent(category.uuid, budget.budgetItems));
   const containerClass = $derived(() => {
-    return `dark:bg-primary-900 bg-primary-200 @container relative flex justify-evenly gap-2 rounded-lg ${isEdit ? 'p-0' : 'p-4'}`;
+    return `dark:bg-sky-900 bg-sky-200 @container relative flex justify-evenly gap-2 rounded-lg ${isEdit ? 'p-0' : 'p-4'}`;
+  });
+  const remainingClass = $derived(() => {
+    return category?.limit - totalSpent < 0
+      ? 'text-red-500 dark:text-red-400'
+      : '' + 'font-semibold';
   });
 </script>
 
@@ -38,33 +44,32 @@
     </Button>
   </div>
   {#if isEdit && budgets}
-    <AddBudgetItem
+    <AddCategory
       {budgets}
-      {budgetItem}
+      {category}
       {isEdit}
-      onSuccess={() => {
-        isEdit = false;
-      }}
+      {shouldHideBudgetSelect}
+      onSuccess={() => (isEdit = false)}
     />
   {:else}
     <div class="flex flex-1 flex-col gap-2 @sm:flex-row">
       <div class="flex flex-1 flex-col justify-evenly">
         <Label for="name">Name</Label>
-        <P class="font-semibold">{budgetItem.name}</P>
+        <P class="font-semibold">{category?.name}</P>
       </div>
       <div class="flex flex-1 flex-col justify-evenly">
-        <Label for="date">Date</Label>
-        <P class="font-semibold">{new Date(budgetItem.purchaseDate).toLocaleDateString()}</P>
+        <Label for="limit">Limit</Label>
+        <P class="font-semibold">{formatCurrency(category?.limit ?? 0)}</P>
       </div>
     </div>
     <div class="flex flex-1 flex-col gap-2 @sm:flex-row">
       <div class="flex flex-1 flex-col justify-evenly">
-        <Label for="amount">Amount</Label>
-        <P class="font-semibold">{formatCurrency(budgetItem.amount)}</P>
+        <Label for="name">Total Spent</Label>
+        <P class="font-semibold">{formatCurrency(totalSpent)}</P>
       </div>
       <div class="flex flex-1 flex-col justify-evenly">
-        <Label for="category">Category</Label>
-        <P class="font-semibold">{category()?.name}</P>
+        <Label for="remaining">Remaining</Label>
+        <P class={remainingClass()}>{formatCurrency(category?.limit - totalSpent)}</P>
       </div>
     </div>
   {/if}

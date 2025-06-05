@@ -5,8 +5,15 @@
   import AddCategory from './AddCategory.svelte';
   import AddBudgetItem from './AddBudgetItem.svelte';
   import { formatCurrency } from '$lib/utils/money';
-  import { ChevronDoubleLeftOutline, ChevronDoubleRightOutline } from 'flowbite-svelte-icons';
+  import {
+    ChevronDoubleLeftOutline,
+    ChevronDoubleRightOutline,
+    CloseOutline,
+    PlusOutline,
+  } from 'flowbite-svelte-icons';
   import PurchaseDisplay from './PurchaseDisplay.svelte';
+  import CategoryDisplay from './CategoryDisplay.svelte';
+  import { getCategoryTotalSpent } from '$lib/helpers/budgets';
 
   type _Props = {
     budget: BudgetWithRelations;
@@ -14,6 +21,8 @@
   let { budget }: _Props = $props();
   let currentBudget = $state<BudgetWithRelations>();
   let selectedCategory = $state();
+  let isAddBudgetVisible = $state(false);
+  let isAddCategoryVisible = $state(false);
 
   const categories = $derived(budget.categories);
   const budgetItems = $derived(budget.budgetItems);
@@ -49,8 +58,8 @@
     return {
       index: categories.findIndex((c) => c.uuid === selectedCategory),
       ...cat,
-      remaining: cat.limit - getCategoryTotalSpent(cat.uuid),
-      totalSpent: getCategoryTotalSpent(cat.uuid),
+      remaining: cat.limit - getCategoryTotalSpent(cat.uuid, budgetItems),
+      totalSpent: getCategoryTotalSpent(cat.uuid, budgetItems),
     };
   });
 
@@ -79,14 +88,14 @@
     selectedCategory = cat.uuid;
   };
 
-  const getCategoryTotalSpent = (categoryId: string) => {
-    return budgetItems.reduce((acc, item) => {
-      if (item.categoryId === categoryId) {
-        return acc + item.amount;
-      }
-      return acc;
-    }, 0);
-  };
+  // const getCategoryTotalSpent = (categoryId: string, budgetItems: BudgetItem[]) => {
+  //   return budgetItems.reduce((acc, item) => {
+  //     if (item.categoryId === categoryId) {
+  //       return acc + item.amount;
+  //     }
+  //     return acc;
+  //   }, 0);
+  // };
 
   $effect(() => {
     if (currentBudget?.uuid !== budget.uuid) {
@@ -123,20 +132,77 @@
     <Accordion flush>
       <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
         {#snippet header()}
-          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg"
-            >Record Purchase</P
-          >
+          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Purchases</P>
         {/snippet}
-        <AddBudgetItem budgets={[budget]} shouldHideBudgetSelect />
+        <div class="flex justify-between py-4">
+          <P
+            class="text-primary-900 dark:text-primary-200 flex-1 text-center font-semibold"
+            size="lg">{isAddBudgetVisible ? 'Add Purchase' : 'Past Purchases'}</P
+          >
+          <Button
+            color="gray"
+            pill={true}
+            class="h-6 w-6 rounded-full p-4"
+            size="sm"
+            outline
+            onclick={() => (isAddBudgetVisible = !isAddBudgetVisible)}
+          >
+            {#if isAddBudgetVisible}
+              <CloseOutline />
+            {:else}
+              <PlusOutline />
+            {/if}
+          </Button>
+        </div>
+        {#if isAddBudgetVisible}
+          <AddBudgetItem budgets={[budget]} shouldHideBudgetSelect />
+          <hr class="my-4" />
+        {/if}
+        {#if budgetItems.length > 0}
+          <div class="flex flex-col gap-4">
+            {#each budgetItems as item}
+              <PurchaseDisplay budgetItem={item} {budget} />
+            {/each}
+          </div>
+        {/if}
       </AccordionItem>
     </Accordion>
   {/if}
   <Accordion flush>
     <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
       {#snippet header()}
-        <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Add Category</P>
+        <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Categories</P>
       {/snippet}
-      <AddCategory budgets={[budget]} shouldHideBudgetSelect />
+      <div class="flex justify-between py-4">
+        <P class="text-primary-900 dark:text-primary-200 flex-1 text-center font-semibold" size="lg"
+          >{isAddCategoryVisible ? 'Add Category' : 'Categories'}</P
+        >
+        <Button
+          color="gray"
+          pill={true}
+          class="h-6 w-6 rounded-full p-4"
+          size="sm"
+          outline
+          onclick={() => (isAddCategoryVisible = !isAddCategoryVisible)}
+        >
+          {#if isAddCategoryVisible}
+            <CloseOutline />
+          {:else}
+            <PlusOutline />
+          {/if}
+        </Button>
+      </div>
+      {#if isAddCategoryVisible}
+        <AddCategory budgets={[budget]} shouldHideBudgetSelect />
+        <hr class="my-4" />
+      {/if}
+      {#if categories.length > 0}
+        <div class="flex flex-col gap-4">
+          {#each categories as category}
+            <CategoryDisplay {budget} {category} shouldHideBudgetSelect />
+          {/each}
+        </div>
+      {/if}
     </AccordionItem>
   </Accordion>
   {#if currentCategory()}
@@ -185,7 +251,7 @@
     </Accordion>
   {/if}
 
-  {#if budgetItems.length > 0}
+  <!-- {#if budgetItems.length > 0}
     <Accordion flush>
       <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
         {#snippet header()}
@@ -200,5 +266,5 @@
         </div>
       </AccordionItem>
     </Accordion>
-  {/if}
+  {/if} -->
 </div>

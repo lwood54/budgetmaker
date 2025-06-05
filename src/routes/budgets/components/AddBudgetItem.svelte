@@ -76,113 +76,103 @@
   });
 </script>
 
-<form
-  action={formAction}
-  method="post"
-  use:enhance={({ formData, submitter }) => {
-    /*
+<div class="w-full">
+  <form
+    action={formAction}
+    method="post"
+    use:enhance={({ formData, submitter }) => {
+      /*
       NOTE: Datepicker has an internal button with type="submit" which triggers form submission
       so we need to prevent this by ensuring the submission trigger happens from the submit
       button we intend.
     */
-    const submitterElement = submitter as HTMLElement;
-    const isOurButton = submitterElement?.id === 'submit-button';
-    if (!isOurButton) {
-      return () => {};
-    }
-
-    formData.append('purchaseDate', purchaseDate.toISOString());
-    isSubmitting = true;
-    return async ({ result, update }) => {
-      await update();
-      isSubmitting = false;
-      if (result.status?.toString().startsWith('2')) {
-        onSuccess?.();
+      const submitterElement = submitter as HTMLElement;
+      const isOurButton = submitterElement?.id === 'submit-button';
+      if (!isOurButton) {
+        return () => {};
       }
-    };
-  }}
->
-  <!-- <div class="flex flex-col justify-evenly gap-4 rounded-lg bg-neutral-200 p-4 dark:bg-neutral-800"> -->
-  <div class={containerClass()}>
-    <div class="flex w-full gap-4 overflow-visible">
-      <div class="flex-1">
-        <Label for="name" class="mb-2 block">Name</Label>
-        <Input name="name" placeholder="groceries" bind:value={name} />
-      </div>
-      <div class="flex-1">
-        <Label for="amount" class="mb-2 block">Amount</Label>
-        <Input
-          min={0}
-          step="0.01"
-          name="amount"
-          placeholder="5.00"
-          type="number"
-          bind:value={amount}
-        />
-      </div>
-    </div>
-    <div class="flex w-full gap-4">
-      <div class="flex-1">
-        <Label for="date" class="mb-2 block">Date</Label>
-        <!-- <input
-          type="date"
-          class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
-          value={purchaseDate ? purchaseDate.toISOString().split('T')[0] : ''}
-          onchange={(e) => {
-            const target = e.target as HTMLInputElement;
-            if (target.value) {
-              purchaseDate = new Date(target.value + 'T00:00:00');
-            }
-          }}
-        /> -->
-        <Datepicker id="date-picker-input" color="green" bind:value={purchaseDate} autohide />
-      </div>
 
-      {#if !shouldHideBudgetSelect}
+      formData.append('purchaseDate', purchaseDate.toISOString());
+      isSubmitting = true;
+      return async ({ result, update }) => {
+        await update();
+        isSubmitting = false;
+        if (result.status?.toString().startsWith('2')) {
+          onSuccess?.();
+        }
+      };
+    }}
+  >
+    <div class={containerClass()}>
+      <div class="flex w-full gap-4 overflow-visible">
         <div class="flex-1">
-          <Label for="category" class="mb-2 block">Budget</Label>
-          <Select name="budgetId" items={budgetOptions} bind:value={selectedBudgetId} />
+          <Label for="name" class="mb-2 block">Name</Label>
+          <Input name="name" placeholder="groceries" bind:value={name} />
         </div>
-      {:else}
-        <input type="hidden" name="budgetId" value={selectedBudgetId} />
         <div class="flex-1">
-          <Label for="category" class="mb-2 block">Category</Label>
-          <Select
-            name="categoryId"
-            items={categoryOptions()}
-            bind:value={selectedCategoryId}
-            disabled={!selectedBudgetId || categoryOptions().length === 0}
-            placeholder={!selectedBudgetId ? 'Select a budget first' : 'Select a category'}
+          <Label for="amount" class="mb-2 block">Amount</Label>
+          <Input
+            min={0}
+            step="0.01"
+            name="amount"
+            placeholder="5.00"
+            type="number"
+            bind:value={amount}
           />
         </div>
-      {/if}
-    </div>
-    {#if !shouldHideBudgetSelect}
+      </div>
       <div class="flex w-full gap-4">
         <div class="flex-1">
-          <Label for="category" class="mb-2 block">Category</Label>
-          <Select
-            name="categoryId"
-            items={categoryOptions()}
-            bind:value={selectedCategoryId}
-            disabled={!selectedBudgetId || categoryOptions().length === 0}
-            placeholder={!selectedBudgetId ? 'Select a budget first' : 'Select a category'}
-          />
+          <Label for="date" class="mb-2 block">Date</Label>
+          <Datepicker id="date-picker-input" color="green" bind:value={purchaseDate} autohide />
         </div>
+
+        {#if !shouldHideBudgetSelect}
+          <div class="flex-1">
+            <Label for="category" class="mb-2 block">Budget</Label>
+            <Select name="budgetId" items={budgetOptions} bind:value={selectedBudgetId} />
+          </div>
+        {:else}
+          <input type="hidden" name="budgetId" value={selectedBudgetId} />
+          <div class="flex-1">
+            <Label for="category" class="mb-2 block">Category</Label>
+            <Select
+              name="categoryId"
+              items={categoryOptions()}
+              bind:value={selectedCategoryId}
+              disabled={!selectedBudgetId || categoryOptions().length === 0}
+              placeholder={!selectedBudgetId ? 'Select a budget first' : 'Select a category'}
+            />
+          </div>
+        {/if}
       </div>
-    {/if}
-    <Button
-      id="submit-button"
-      type="submit"
-      disabled={!selectedBudgetId || !selectedCategoryId || !purchaseDate || isSubmitting}
-    >
-      {#if isSubmitting}
-        <Spinner />
-      {:else if isEdit}
-        Update Purchase Item
-      {:else}
-        Record Purchase
+      {#if !shouldHideBudgetSelect}
+        <div class="flex w-full gap-4">
+          <div class="flex-1">
+            <Label for="category" class="mb-2 block">Category</Label>
+            <Select
+              name="categoryId"
+              items={categoryOptions()}
+              bind:value={selectedCategoryId}
+              disabled={!selectedBudgetId || categoryOptions().length === 0}
+              placeholder={!selectedBudgetId ? 'Select a budget first' : 'Select a category'}
+            />
+          </div>
+        </div>
       {/if}
-    </Button>
-  </div>
-</form>
+      <Button
+        id="submit-button"
+        type="submit"
+        disabled={!selectedBudgetId || !selectedCategoryId || !purchaseDate || isSubmitting}
+      >
+        {#if isSubmitting}
+          <Spinner />
+        {:else if isEdit}
+          Update Purchase Item
+        {:else}
+          Record Purchase
+        {/if}
+      </Button>
+    </div>
+  </form>
+</div>
