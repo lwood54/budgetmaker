@@ -155,7 +155,11 @@
           </Button>
         </div>
         {#if isAddBudgetVisible}
-          <AddBudgetItem budgets={[budget]} shouldHideBudgetSelect />
+          <AddBudgetItem
+            budgets={[budget]}
+            shouldHideBudgetSelect
+            onSuccess={() => (isAddBudgetVisible = false)}
+          />
           <hr class="my-4" />
         {/if}
         {#if budgetItems.length > 0}
@@ -193,7 +197,11 @@
         </Button>
       </div>
       {#if isAddCategoryVisible}
-        <AddCategory budgets={[budget]} shouldHideBudgetSelect />
+        <AddCategory
+          budgets={[budget]}
+          shouldHideBudgetSelect
+          onSuccess={() => (isAddCategoryVisible = false)}
+        />
         <hr class="my-4" />
       {/if}
       {#if categories.length > 0}
