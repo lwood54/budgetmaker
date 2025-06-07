@@ -70,7 +70,7 @@
     <div class={containerClass()}>
       <div>
         <Label for="name" class="mb-2 block">Name</Label>
-        <Input name="name" placeholder="groceries" bind:value={name} />
+        <Input name="name" placeholder="groceries" bind:value={name} class="text-lg" />
       </div>
       <div>
         <Label for="limit" class="mb-2 block">Limit</Label>
@@ -81,12 +81,19 @@
           placeholder="500.00"
           type="number"
           bind:value={limit}
+          class="text-lg"
         />
       </div>
       {#if !shouldHideBudgetSelect}
         <div>
           <Label for="budgetId" class="mb-2 block">Budget</Label>
-          <Select name="budgetId" items={budgetOptions} bind:value={selectedBudgetId} />
+          <Select
+            size="lg"
+            selectClass="h-12"
+            name="budgetId"
+            items={budgetOptions}
+            bind:value={selectedBudgetId}
+          />
         </div>
       {:else}
         <input type="hidden" name="budgetId" value={selectedBudgetId} />

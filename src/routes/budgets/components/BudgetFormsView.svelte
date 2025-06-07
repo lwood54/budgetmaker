@@ -19,7 +19,7 @@
       >
         <div>
           <Label for="name" class="mb-2 block">Name</Label>
-          <Input name="name" placeholder="groceries" />
+          <Input name="name" placeholder="groceries" class="text-lg" />
         </div>
         <Button type="submit">Create Budget</Button>
       </div>

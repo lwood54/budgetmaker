@@ -7,7 +7,7 @@
   const CALCULATOR = {
     CREDIT: 'CREDIT',
     AUTO: 'AUTO',
-    MORTGAGE: 'MORTGAGE'
+    MORTGAGE: 'MORTGAGE',
   } as const;
 
   type Calculator = Union<typeof CALCULATOR>;
@@ -15,13 +15,18 @@
   const calculators = [
     { value: CALCULATOR.CREDIT, label: 'Credit Card' },
     { value: CALCULATOR.AUTO, label: 'Auto Loan' },
-    { value: CALCULATOR.MORTGAGE, label: 'Mortgage' }
+    { value: CALCULATOR.MORTGAGE, label: 'Mortgage' },
   ];
 </script>
 
 <div class="container mx-auto px-4 py-8">
   <div class="mx-auto mb-6 w-full">
-    <Select bind:value={selectedCalculator} class="w-full md:w-1/3">
+    <Select
+      size="lg"
+      selectClass="h-12"
+      bind:value={selectedCalculator}
+      class="w-full text-lg md:w-1/3"
+    >
       {#each calculators as calculator}
         <option value={calculator.value}>{calculator.label}</option>
       {/each}

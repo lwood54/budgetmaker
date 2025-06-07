@@ -108,6 +108,7 @@
                 oninput={resetResultState}
                 min="0"
                 step="100"
+                class="text-lg"
               />
             </div>
 
@@ -121,6 +122,7 @@
                 min="0"
                 max="99"
                 step="0.01"
+                class="text-lg"
               />
               <Range
                 id="annualInterestRate"
@@ -144,6 +146,7 @@
                 oninput={resetResultState}
                 min="0"
                 step="1"
+                class="text-lg"
               />
               <Range
                 id="monthlyPayment"

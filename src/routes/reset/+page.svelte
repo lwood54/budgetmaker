@@ -76,7 +76,7 @@
               placeholder="your@email.com"
               value={form?.email || ''}
               required
-              class="block w-full"
+              class="block w-full text-lg"
               autocomplete="email"
             />
           </div>
@@ -167,7 +167,7 @@
                 placeholder="••••••••"
                 required
                 bind:value={password}
-                class="block w-full pr-10"
+                class="block w-full pr-10 text-lg"
                 autocomplete="new-password"
               />
               <button
@@ -195,7 +195,7 @@
                 placeholder="••••••••"
                 required
                 bind:value={confirmPassword}
-                class="block w-full pr-10"
+                class="block w-full pr-10 text-lg"
                 autocomplete="new-password"
               />
               <button

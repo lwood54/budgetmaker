@@ -71,7 +71,7 @@
             placeholder="your@email.com"
             value={form?.email || ''}
             required
-            class="block w-full"
+            class="block w-full text-lg"
             autocomplete="email"
           />
         </div>
@@ -85,7 +85,7 @@
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               required
-              class="block w-full pr-10"
+              class="block w-full pr-10 text-lg"
               autocomplete="current-password"
             />
             <button

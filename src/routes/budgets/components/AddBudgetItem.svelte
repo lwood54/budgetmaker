@@ -107,7 +107,7 @@
       <div class="flex w-full gap-4 overflow-visible">
         <div class="flex-1">
           <Label for="name" class="mb-2 block">Name</Label>
-          <Input name="name" placeholder="groceries" bind:value={name} />
+          <Input name="name" placeholder="groceries" bind:value={name} class="text-lg" />
         </div>
         <div class="flex-1">
           <Label for="amount" class="mb-2 block">Amount</Label>
@@ -118,25 +118,40 @@
             placeholder="5.00"
             type="number"
             bind:value={amount}
+            class="text-lg"
           />
         </div>
       </div>
       <div class="flex w-full gap-4">
         <div class="flex-1">
           <Label for="date" class="mb-2 block">Date</Label>
-          <Datepicker id="date-picker-input" color="green" bind:value={purchaseDate} autohide />
+          <Datepicker
+            inputClass="text-lg"
+            id="date-picker-input"
+            color="green"
+            bind:value={purchaseDate}
+            autohide
+          />
         </div>
 
         {#if !shouldHideBudgetSelect}
           <div class="flex-1">
             <Label for="category" class="mb-2 block">Budget</Label>
-            <Select name="budgetId" items={budgetOptions} bind:value={selectedBudgetId} />
+            <Select
+              size="lg"
+              selectClass="h-12"
+              name="budgetId"
+              items={budgetOptions}
+              bind:value={selectedBudgetId}
+            />
           </div>
         {:else}
           <input type="hidden" name="budgetId" value={selectedBudgetId} />
           <div class="flex-1">
             <Label for="category" class="mb-2 block">Category</Label>
             <Select
+              size="lg"
+              selectClass="h-12"
               name="categoryId"
               items={categoryOptions()}
               bind:value={selectedCategoryId}
@@ -151,6 +166,8 @@
           <div class="flex-1">
             <Label for="category" class="mb-2 block">Category</Label>
             <Select
+              size="lg"
+              selectClass="h-12"
               name="categoryId"
               items={categoryOptions()}
               bind:value={selectedCategoryId}
