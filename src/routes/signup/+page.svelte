@@ -57,7 +57,7 @@
               type="text"
               placeholder="First name"
               value={form?.firstName || ''}
-              class="block w-full"
+              class="block w-full text-lg"
             />
           </div>
           <div>
@@ -68,7 +68,7 @@
               type="text"
               placeholder="Last name"
               value={form?.lastName || ''}
-              class="block w-full"
+              class="block w-full text-lg"
             />
           </div>
         </div>
@@ -82,7 +82,7 @@
             placeholder="your@email.com"
             value={form?.email || ''}
             required
-            class="block w-full"
+            class="block w-full text-lg"
           />
           <Helper class="mt-2 text-sm text-gray-500">
             We'll send you a verification email to confirm your account.
@@ -99,7 +99,7 @@
               placeholder="••••••••"
               required
               bind:value={password}
-              class="block w-full pr-10"
+              class="block w-full pr-10 text-lg"
             />
             <button
               type="button"
@@ -126,7 +126,7 @@
               placeholder="••••••••"
               required
               bind:value={confirmPassword}
-              class="block w-full pr-10"
+              class="block w-full pr-10 text-lg"
             />
             <button
               type="button"

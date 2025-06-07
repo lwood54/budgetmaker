@@ -167,9 +167,10 @@
                 id="homePrice"
                 type="number"
                 bind:value={homePrice}
-                onchange={resetResultState}
+                oninput={resetResultState}
                 min="0"
-                step="10000"
+                step="1000"
+                class="text-lg"
               />
             </div>
 
@@ -183,6 +184,7 @@
                 min="0"
                 max="100"
                 step="1"
+                class="text-lg"
               />
               <Range
                 id="downPaymentPercent"
@@ -207,6 +209,7 @@
                 min="10"
                 max="30"
                 step="5"
+                class="text-lg"
               />
               <Range
                 id="loanTerm"
@@ -231,6 +234,7 @@
                 min="0"
                 max="20"
                 step="0.1"
+                class="text-lg"
               />
               <Range
                 id="interestRate"
@@ -254,6 +258,7 @@
                 onchange={resetResultState}
                 min="0"
                 step="100"
+                class="text-lg"
               />
             </div>
 
@@ -266,6 +271,7 @@
                 onchange={resetResultState}
                 min="0"
                 step="100"
+                class="text-lg"
               />
             </div>
           </div>

@@ -82,6 +82,7 @@
                 onchange={resetResultState}
                 min="0"
                 step="1000"
+                class="text-lg"
               />
             </div>
 
@@ -94,6 +95,7 @@
                 onchange={resetResultState}
                 min="0"
                 step="500"
+                class="text-lg"
               />
             </div>
 
@@ -106,6 +108,7 @@
                 onchange={resetResultState}
                 min="0"
                 step="500"
+                class="text-lg"
               />
             </div>
 
@@ -119,6 +122,7 @@
                 min="12"
                 max="84"
                 step="12"
+                class="text-lg"
               />
               <Range
                 id="loanTerm"
@@ -143,6 +147,7 @@
                 min="0"
                 max="20"
                 step="0.1"
+                class="text-lg"
               />
               <Range
                 id="interestRate"

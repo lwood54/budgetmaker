@@ -241,7 +241,13 @@
                 <ChevronDoubleLeftOutline />
               </Button>
             </div>
-            <Select class="w-32" items={categoryOptions} bind:value={selectedCategory} />
+            <Select
+              size="lg"
+              selectClass="h-12"
+              class="w-32"
+              items={categoryOptions}
+              bind:value={selectedCategory}
+            />
             <div class="hidden @sm:flex">
               <Button
                 color="gray"
