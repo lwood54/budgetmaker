@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Card, Range, Input, Chart, Label, P, Button } from 'flowbite-svelte';
+  import { Card, Range, Input, Label, P, Button } from 'flowbite-svelte';
   import { toLocalCurrency } from '$lib/helpers/conversions';
   import { onMount } from 'svelte';
+  import AutoLoanChart from './AutoLoanChart.svelte';
 
   const { isSelected }: { isSelected: boolean } = $props();
 
@@ -66,11 +67,11 @@
 </script>
 
 {#if isSelected}
-  <div class="space-y-6 p-4">
-    <P class="font-semibold" size="lg">Auto Loan Calculator</P>
-    <div class="flex gap-4">
-      <div class="flex flex-1 flex-col gap-4">
-        <Card class="flex-2">
+  <div class="flex flex-col gap-4 p-4">
+    <P class="text-center font-semibold" size="lg">Auto Loan Calculator</P>
+    <div class="flex flex-col gap-4 md:flex-row">
+      <div class="flex flex-col gap-4 md:flex-1">
+        <Card class="w-full max-w-none flex-2">
           <div class="space-y-4 p-4">
             <div class="flex flex-col gap-2">
               <Label for="vehiclePrice">Vehicle Price</Label>
@@ -158,7 +159,7 @@
           </div>
         </Card>
 
-        <Card class="flex-1 p-4">
+        <Card class="w-full max-w-none flex-1 p-4">
           {#if hasCalculated}
             <div class="space-y-4">
               <P size="lg">
@@ -175,92 +176,17 @@
             <Button onclick={handleRecalculate}>Calculate</Button>
           {/if}
         </Card>
-      </div>
-      <div class="flex flex-2 flex-col gap-4">
-        <Card size="xl" class="h-full p-4">
+
+        <div class="flex flex-2 flex-col gap-4 md:hidden">
           {#if hasCalculated}
-            <Chart
-              options={{
-                series: [
-                  {
-                    name: 'Remaining Balance',
-                    data: balances,
-                  },
-                ],
-                chart: {
-                  type: 'line',
-                  height: '100%',
-                  toolbar: {
-                    show: false,
-                  },
-                  zoom: {
-                    enabled: true,
-                  },
-                },
-                colors: ['#0EC7C1'],
-                stroke: {
-                  width: 2,
-                  curve: 'smooth',
-                },
-                grid: {
-                  show: true,
-                  borderColor: '#E5E7EB',
-                  strokeDashArray: 4,
-                  padding: {
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                  },
-                },
-                xaxis: {
-                  categories: balances.map((_, index) => `Month ${index}`),
-                  labels: {
-                    style: {
-                      colors: '#6B7280',
-                    },
-                  },
-                  axisBorder: {
-                    show: true,
-                    color: '#E5E7EB',
-                  },
-                  axisTicks: {
-                    show: true,
-                    color: '#E5E7EB',
-                  },
-                },
-                yaxis: {
-                  labels: {
-                    style: {
-                      colors: '#6B7280',
-                    },
-                    formatter: function (value: number) {
-                      return toLocalCurrency(value);
-                    },
-                  },
-                },
-                tooltip: {
-                  shared: true,
-                  intersect: false,
-                  y: {
-                    formatter: function (value: number) {
-                      return toLocalCurrency(value);
-                    },
-                  },
-                },
-                title: {
-                  text: 'Loan Amortization',
-                  align: 'center',
-                  style: {
-                    fontSize: '18px',
-                    fontWeight: '600',
-                    color: '#0EC7C1',
-                  },
-                },
-              }}
-            />
+            <AutoLoanChart {balances} />
           {/if}
-        </Card>
+        </div>
+      </div>
+      <div class="hidden flex-2 flex-col gap-4 md:flex">
+        {#if hasCalculated}
+          <AutoLoanChart {balances} />
+        {/if}
       </div>
     </div>
   </div>

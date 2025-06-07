@@ -37,7 +37,6 @@
   let scrollY = $state(0);
   let navbarOpacity = $state(0);
   let blurValue = $state(0);
-  // let isDarkMode = $state(false);
   let isDrawerHidden = $state(true);
   let isDarkMode = $derived(getIsDarkMode());
 
