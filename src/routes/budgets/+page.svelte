@@ -59,7 +59,7 @@
     </div>
     <Search clearable clearableOnClick={() => (search = '')} bind:value={search} />
     <div
-      class="flex h-[calc(100vh-15rem)] flex-col rounded-lg bg-neutral-400 p-4 @min-[650px]:w-sm dark:border-neutral-700 dark:bg-neutral-600"
+      class="flex h-[calc(100vh-15rem)] flex-col rounded-lg bg-neutral-400 p-4 @min-[650px]:max-w-[300px] dark:border-neutral-700 dark:bg-neutral-600"
     >
       <div class="mb-4 flex flex-col gap-4">
         <P size="2xl" class="text-primary-900 dark:text-primary-200">Budgets</P>

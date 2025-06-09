@@ -137,4 +137,14 @@ export const actions: Actions = {
       })
       .where(eq(budgetItems.uuid, budgetItemId));
   },
+  deleteBudgetItem: async ({ locals, request, url }) => {
+    const budgetItemId = url.searchParams.get('budgetItemUUID');
+    if (!budgetItemId) {
+      console.info('budgetItemId is required');
+      return fail(400, { error: 'BudgetItem is required' });
+    }
+    console.log('deleting budget item', budgetItemId, 'from user', locals.user?.userId);
+    await locals.db.delete(budgetItems).where(eq(budgetItems.uuid, budgetItemId));
+    return { success: true };
+  },
 };

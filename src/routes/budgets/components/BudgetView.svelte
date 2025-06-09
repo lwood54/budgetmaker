@@ -1,19 +1,36 @@
 <script lang="ts">
   import CategoryBarChart from '$lib/components/CategoryBarChart.svelte';
-  import type { BudgetWithRelations } from '$lib/server/db/schema';
-  import { Accordion, AccordionItem, Button, P, Progressbar, Select } from 'flowbite-svelte';
+  import type { BudgetItem, BudgetWithRelations } from '$lib/server/db/schema';
+  import {
+    Accordion,
+    AccordionItem,
+    Button,
+    Modal,
+    P,
+    Progressbar,
+    Select,
+    Table,
+    TableBody,
+    TableBodyCell,
+    TableBodyRow,
+    TableHead,
+    TableHeadCell,
+  } from 'flowbite-svelte';
   import AddCategory from './AddCategory.svelte';
-  import AddBudgetItem from './AddBudgetItem.svelte';
   import { formatCurrency } from '$lib/utils/money';
   import {
     ChevronDoubleLeftOutline,
     ChevronDoubleRightOutline,
     CloseOutline,
     PlusOutline,
+    PenOutline,
+    TrashBinOutline,
   } from 'flowbite-svelte-icons';
-  import PurchaseDisplay from './PurchaseDisplay.svelte';
   import CategoryDisplay from './CategoryDisplay.svelte';
-  import { getCategoryTotalSpent } from '$lib/helpers/budgets';
+  import { getCategory, getCategoryTotalSpent } from '$lib/helpers/budgets';
+  import { isoStringToDate } from '$lib/helpers/conversions';
+  import BudgetItemForm from './BudgetItemForm.svelte';
+  import { enhance } from '$app/forms';
 
   type _Props = {
     budget: BudgetWithRelations;
@@ -23,6 +40,10 @@
   let selectedCategory = $state();
   let isAddBudgetVisible = $state(false);
   let isAddCategoryVisible = $state(false);
+  let editBudgetItemId = $state('');
+  let deleteBudgetItem = $state<BudgetItem>();
+  let isDeleteModalOpen = $state(false);
+  let isSubmitting = $state(false);
 
   const categories = $derived(budget.categories);
   const budgetItems = $derived(budget.budgetItems);
@@ -88,15 +109,6 @@
     selectedCategory = cat.uuid;
   };
 
-  // const getCategoryTotalSpent = (categoryId: string, budgetItems: BudgetItem[]) => {
-  //   return budgetItems.reduce((acc, item) => {
-  //     if (item.categoryId === categoryId) {
-  //       return acc + item.amount;
-  //     }
-  //     return acc;
-  //   }, 0);
-  // };
-
   $effect(() => {
     if (currentBudget?.uuid !== budget.uuid) {
       currentBudget = budget;
@@ -106,6 +118,41 @@
     }
   });
 </script>
+
+<Modal title="Remove Purchase" bind:open={isDeleteModalOpen} autoclose>
+  <P size="lg">Are you sure you want to delete this purchase?</P>
+  <P class="text-primary-900 dark:text-primary-200 font-semibold">{deleteBudgetItem?.name}</P>
+
+  {#snippet footer()}
+    <div class="flex w-full justify-end gap-4">
+      <Button
+        onclick={() => {
+          isDeleteModalOpen = false;
+          deleteBudgetItem = undefined;
+        }}
+        color="alternative">Cancel</Button
+      >
+      <form
+        action={`/budgets?/deleteBudgetItem&budgetItemUUID=${deleteBudgetItem?.uuid}`}
+        use:enhance={() => {
+          isSubmitting = true;
+          isSubmitting = true;
+          return async ({ result, update }) => {
+            await update();
+            isSubmitting = false;
+            if (result.status?.toString().startsWith('2')) {
+              isDeleteModalOpen = false;
+              deleteBudgetItem = undefined;
+            }
+          };
+        }}
+        method="post"
+      >
+        <Button color="red" type="submit" disabled={isSubmitting}>Remove</Button>
+      </form>
+    </div>
+  {/snippet}
+</Modal>
 
 <div class="@container flex flex-col gap-4 overflow-y-auto">
   <div class="flex flex-col gap-2">
@@ -130,13 +177,13 @@
   </div>
   {#if categories.length > 0}
     <Accordion flush>
-      <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
+      <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-0 pt-4">
         {#snippet header()}
           <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg">Purchases</P>
         {/snippet}
-        <div class="flex justify-between py-4">
+        <div class="flex justify-between pr-4">
           <P
-            class="text-primary-900 dark:text-primary-200 flex-1 text-center font-semibold"
+            class="text-primary-900 dark:text-primary-200 mb-4 flex-1 text-center font-semibold"
             size="lg">{isAddBudgetVisible ? 'Add Purchase' : 'Past Purchases'}</P
           >
           <Button
@@ -154,20 +201,115 @@
             {/if}
           </Button>
         </div>
-        {#if isAddBudgetVisible}
-          <AddBudgetItem
-            budgets={[budget]}
-            shouldHideBudgetSelect
-            onSuccess={() => (isAddBudgetVisible = false)}
-          />
-          <hr class="my-4" />
-        {/if}
         {#if budgetItems.length > 0}
-          <div class="flex flex-col gap-4">
+          <Table border={false}>
+            <TableHead
+              class="bg-primary-400 dark:bg-primary-700 text-primary-900 dark:text-primary-200"
+            >
+              <TableHeadCell
+                ><P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">Name</P
+                ></TableHeadCell
+              >
+              <TableHeadCell class="w-30"
+                ><P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">Date</P
+                ></TableHeadCell
+              >
+              <TableHeadCell
+                ><P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold"
+                  >Category</P
+                ></TableHeadCell
+              >
+              <TableHeadCell
+                ><P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">Amount</P
+                ></TableHeadCell
+              >
+              <TableHeadCell></TableHeadCell>
+            </TableHead>
+            <TableBody>
+              {#if isAddBudgetVisible}
+                <TableBodyRow>
+                  <BudgetItemForm
+                    budgets={[budget]}
+                    isHidingBudgetSelect
+                    onSuccess={() => (isAddBudgetVisible = false)}
+                  />
+                </TableBodyRow>
+              {/if}
+              {#each budgetItems as item}
+                <TableBodyRow
+                  class="bg-primary-200 hover:bg-primary-300 dark:bg-primary-900 dark:hover:bg-primary-800 text-secondary-600 dark:text-secondary-300"
+                >
+                  {#if editBudgetItemId === item.uuid}
+                    <BudgetItemForm
+                      budgets={[budget]}
+                      budgetItem={item}
+                      isHidingBudgetSelect
+                      onSuccess={() => (editBudgetItemId = '')}
+                    />
+                  {:else}
+                    <TableBodyCell class="max-w-32 flex-1"
+                      ><P
+                        size="lg"
+                        class="text-primary-900 dark:text-primary-200 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
+                        >{item.name}</P
+                      ></TableBodyCell
+                    >
+                    <TableBodyCell class="w-30"
+                      ><P
+                        size="lg"
+                        class="text-primary-900 dark:text-primary-200 w-30 font-semibold"
+                        >{isoStringToDate(item.purchaseDate)}</P
+                      ></TableBodyCell
+                    >
+                    <TableBodyCell class="max-w-32 flex-1"
+                      ><P
+                        size="lg"
+                        class="text-primary-900 dark:text-primary-200 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
+                        >{getCategory(item.categoryId, categories)?.name}</P
+                      ></TableBodyCell
+                    >
+                    <TableBodyCell class="max-w-34"
+                      ><P
+                        size="lg"
+                        class="text-primary-900 dark:text-primary-200 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
+                        >{formatCurrency(item.amount)}</P
+                      ></TableBodyCell
+                    >
+                    <TableBodyCell class="w-18">
+                      <Button
+                        color="gray"
+                        pill={true}
+                        size="xs"
+                        outline
+                        onclick={() => (editBudgetItemId = item.uuid)}
+                        class="h-8 w-8 rounded-full border-none"
+                      >
+                        <PenOutline size="sm" />
+                      </Button>
+                      <Button
+                        color="gray"
+                        pill={true}
+                        size="xs"
+                        outline
+                        onclick={() => {
+                          deleteBudgetItem = item;
+                          isDeleteModalOpen = true;
+                        }}
+                        class="h-8 w-8 rounded-full border-none"
+                      >
+                        <TrashBinOutline color="red" size="sm" />
+                      </Button>
+                    </TableBodyCell>
+                  {/if}
+                </TableBodyRow>
+              {/each}
+            </TableBody>
+          </Table>
+          <!-- <div class="flex flex-col">
             {#each budgetItems as item}
               <PurchaseDisplay budgetItem={item} {budget} />
             {/each}
-          </div>
+          </div> -->
         {/if}
       </AccordionItem>
     </Accordion>
@@ -264,21 +406,4 @@
       </AccordionItem>
     </Accordion>
   {/if}
-
-  <!-- {#if budgetItems.length > 0}
-    <Accordion flush>
-      <AccordionItem contentClass="bg-neutral-400 dark:bg-neutral-800 rounded-lg p-4">
-        {#snippet header()}
-          <P class="text-primary-900 dark:text-primary-200 font-semibold" size="lg"
-            >Past Purchases</P
-          >
-        {/snippet}
-        <div class="flex flex-col gap-4">
-          {#each budgetItems as item}
-            <PurchaseDisplay budgetItem={item} {budget} />
-          {/each}
-        </div>
-      </AccordionItem>
-    </Accordion>
-  {/if} -->
 </div>

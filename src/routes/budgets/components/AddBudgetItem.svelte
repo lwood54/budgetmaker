@@ -47,7 +47,8 @@
   });
 
   const containerClass = $derived(() => {
-    return `flex flex-col justify-evenly gap-4 rounded-lg ${isEdit ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-neutral-200 dark:bg-neutral-800'} p-4`;
+    // return `flex flex-col justify-evenly gap-4 rounded-lg ${isEdit ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-neutral-200 dark:bg-neutral-800'} p-4`;
+    return `flex flex-col justify-evenly ${isEdit ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-neutral-200 dark:bg-neutral-800'} p-4`;
   });
 
   let selectedCategoryId = $state();
