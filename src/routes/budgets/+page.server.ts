@@ -2,7 +2,7 @@ import { budgetItems, budgets, categories } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import { getBudgetsByUserId } from '$lib/api/budgets';
-import { dollarsToCents, parseUserInputToCents } from '$lib/utils/money';
+import { parseUserInputToCents } from '$lib/utils/money';
 import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -34,6 +34,26 @@ export const actions: Actions = {
     });
 
     return { success: true };
+  },
+  editBudget: async ({ locals, request, url }) => {
+    const formData = await request.formData();
+    const budgetId = url.searchParams.get('budgetUUID');
+    const name = formData.get('name') as string;
+    console.log('editing budget', budgetId, 'to', name);
+    if (!budgetId || !name) {
+      return fail(400, { error: 'Budget is required' });
+    }
+
+    await locals.db.update(budgets).set({ name }).where(eq(budgets.uuid, budgetId));
+
+    return { success: true };
+  },
+  deleteBudget: async ({ locals, url }) => {
+    const budgetId = url.searchParams.get('budgetUUID');
+    if (!budgetId) {
+      return fail(400, { error: 'Budget is required' });
+    }
+    await locals.db.delete(budgets).where(eq(budgets.uuid, budgetId));
   },
   addCategory: async ({ locals, request }) => {
     const formData = await request.formData();
@@ -137,10 +157,9 @@ export const actions: Actions = {
       })
       .where(eq(budgetItems.uuid, budgetItemId));
   },
-  deleteBudgetItem: async ({ locals, request, url }) => {
+  deleteBudgetItem: async ({ locals, url }) => {
     const budgetItemId = url.searchParams.get('budgetItemUUID');
     if (!budgetItemId) {
-      console.info('budgetItemId is required');
       return fail(400, { error: 'BudgetItem is required' });
     }
     console.log('deleting budget item', budgetItemId, 'from user', locals.user?.userId);
