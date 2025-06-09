@@ -3,7 +3,6 @@
   import { P } from 'flowbite-svelte';
 
   const { data } = $props();
-  // const budget = $derived(data.budget);
 </script>
 
 <div

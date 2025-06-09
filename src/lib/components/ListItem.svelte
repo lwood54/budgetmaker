@@ -5,9 +5,10 @@
     children: any;
     href?: string;
     isActive?: boolean;
+    listClass?: string;
     onClick?: () => void;
   };
-  let { onClick, href, children, isActive }: _Props = $props();
+  let { onClick, href, children, isActive, listClass = '' }: _Props = $props();
 
   const handleClick = () => {
     if (href) {
@@ -20,7 +21,7 @@
 <div
   class="flex w-full cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-neutral-200 dark:hover:bg-neutral-700 {isActive
     ? 'bg-primary-200 dark:bg-primary-700'
-    : ''}"
+    : ''} {listClass}"
   onclick={handleClick}
   onkeydown={(e) => {
     if (e.key === 'Enter' || e.key === ' ') {

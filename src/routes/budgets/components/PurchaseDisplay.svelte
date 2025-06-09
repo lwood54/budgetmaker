@@ -17,7 +17,8 @@
   let isEdit = $state(false);
   const budgets = $derived(page.data.budgets);
   const containerClass = $derived(() => {
-    return `dark:bg-primary-900 bg-primary-200 @container relative flex justify-evenly gap-2 rounded-lg ${isEdit ? 'p-0' : 'p-4'}`;
+    // return `dark:bg-primary-900 bg-primary-200 @container relative flex justify-evenly gap-2 rounded-lg ${isEdit ? 'p-0' : 'p-4'}`;
+    return `dark:bg-primary-900 bg-primary-200 @container relative flex justify-evenly gap-2`;
   });
 </script>
 
