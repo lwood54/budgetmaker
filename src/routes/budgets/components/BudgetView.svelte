@@ -230,7 +230,6 @@
                 <TableBodyRow>
                   <BudgetItemForm
                     budgets={[budget]}
-                    isHidingBudgetSelect
                     onSuccess={() => (isAddBudgetVisible = false)}
                   />
                 </TableBodyRow>
@@ -243,7 +242,6 @@
                     <BudgetItemForm
                       budgets={[budget]}
                       budgetItem={item}
-                      isHidingBudgetSelect
                       onSuccess={() => (editBudgetItemId = '')}
                     />
                   {:else}

@@ -1,0 +1,183 @@
+<script lang="ts">
+  import { Button, P, Progressbar } from 'flowbite-svelte';
+  import { ArrowLeftOutline } from 'flowbite-svelte-icons';
+  import { getCategoryPurchases } from '$lib/api/budgets.remote';
+  import { formatCurrency } from '$lib/utils/money';
+  import { isoStringToDate } from '$lib/helpers/conversions';
+  import { goto } from '$app/navigation';
+  import { Route } from '$lib/constants/routes';
+
+  let { params } = $props();
+
+  const categoryData = await getCategoryPurchases({
+    categoryId: params.categoryId,
+    budgetId: params.uuid,
+  });
+
+  function getCategoryProgress(categorySpent: number, categoryLimit: number) {
+    if (categoryLimit > 0 && categorySpent > 0) {
+      const progress = (categorySpent / categoryLimit) * 100;
+      return Math.min(progress, 100);
+    }
+    if (categoryLimit > 0 && categorySpent === 0) {
+      return 0;
+    }
+    return 0;
+  }
+
+  const categorySpent = $derived(
+    categoryData ? categoryData.items.reduce((acc, item) => acc + item.amount, 0) : 0,
+  );
+  const categoryLimit = $derived(categoryData ? categoryData.category.limit : 0);
+  const categoryRemaining = $derived(categoryLimit - categorySpent);
+  const categoryOverAmount = $derived(categorySpent - categoryLimit);
+  const isOverLimit = $derived(categorySpent > categoryLimit);
+  const isNearLimit = $derived(categorySpent > categoryLimit * 0.8);
+  const categoryProgress = $derived(getCategoryProgress(categorySpent, categoryLimit));
+
+  const progressColor = $derived(() => {
+    if (isOverLimit) {
+      return 'red';
+    }
+    if (isNearLimit) {
+      return 'yellow';
+    }
+    return 'green';
+  });
+</script>
+
+<div class="min-h-screen bg-neutral-50 pb-6 dark:bg-neutral-900">
+  <!-- Header -->
+  <header
+    class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95"
+  >
+    <div class="flex items-center gap-3 px-4 py-4">
+      <Button
+        color="alternative"
+        size="sm"
+        outline
+        class="border-none p-2"
+        onclick={() => goto(Route.budget_new(params.uuid))}
+        aria-label="Back to budget"
+      >
+        <ArrowLeftOutline class="text-primary-900 dark:text-primary-200 h-5 w-5" />
+      </Button>
+      <div class="min-w-0 flex-1">
+        {#if categoryData}
+          <P size="xl" class="text-primary-900 dark:text-primary-200 truncate font-bold">
+            {categoryData.category.name}
+          </P>
+        {:else}
+          <P size="xl" class="text-primary-900 dark:text-primary-200 font-bold">
+            Category Not Found
+          </P>
+        {/if}
+      </div>
+    </div>
+  </header>
+
+  {#if categoryData}
+    <main class="px-4 py-4">
+      <!-- Category Summary Card -->
+      <div
+        class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+      >
+        <div class="mb-4">
+          <div class="mb-2 flex items-center justify-between">
+            <P size="sm" class="text-neutral-600 dark:text-neutral-400">Category Limit</P>
+            <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">
+              {formatCurrency(categoryLimit)}
+            </P>
+          </div>
+          <Progressbar
+            progress={categoryProgress}
+            color={progressColor()}
+            class="mb-2"
+            style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
+          />
+        </div>
+
+        <div
+          class="grid grid-cols-2 gap-4 border-t border-neutral-200 pt-4 dark:border-neutral-700"
+        >
+          <div>
+            <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">Spent</P>
+            <P size="lg" class="font-semibold text-green-600 dark:text-green-400">
+              {formatCurrency(categorySpent)}
+            </P>
+          </div>
+          <div>
+            <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">
+              {isOverLimit ? 'Over Budget' : 'Remaining'}
+            </P>
+            <P
+              size="lg"
+              class="font-semibold {isOverLimit
+                ? 'text-red-600 dark:text-red-400'
+                : isNearLimit
+                  ? 'text-yellow-600 dark:text-yellow-400'
+                  : 'text-green-600 dark:text-green-400'}"
+            >
+              {#if isOverLimit}
+                by {formatCurrency(categoryOverAmount)}
+              {:else}
+                {formatCurrency(categoryRemaining)}
+              {/if}
+            </P>
+          </div>
+        </div>
+      </div>
+
+      <!-- Purchases List -->
+      <div>
+        <P size="lg" class="text-primary-900 dark:text-primary-200 mb-3 font-semibold">
+          Purchases ({categoryData.items.length})
+        </P>
+
+        {#if categoryData.items.length > 0}
+          <div class="space-y-2">
+            {#each categoryData.items as item (item.uuid)}
+              <div
+                class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="min-w-0 flex-1">
+                    <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                      {item.name}
+                    </P>
+                    <span class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                      {isoStringToDate(item.purchaseDate)}
+                    </span>
+                  </div>
+                  <P size="sm" class="text-primary-900 dark:text-primary-200 ml-3 font-semibold">
+                    {formatCurrency(item.amount)}
+                  </P>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div
+            class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+          >
+            <P size="sm" class="text-neutral-500 dark:text-neutral-400">
+              No purchases recorded in this category yet
+            </P>
+          </div>
+        {/if}
+      </div>
+    </main>
+  {:else}
+    <main class="flex min-h-[60vh] flex-col items-center justify-center px-4">
+      <P size="lg" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
+        Category Not Found
+      </P>
+      <p class="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+        The category you're looking for doesn't exist or you don't have access to it.
+      </p>
+      <Button color="primary" onclick={() => goto(Route.budget_new(params.uuid))}>
+        Back to Budget
+      </Button>
+    </main>
+  {/if}
+</div>

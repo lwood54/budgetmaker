@@ -41,7 +41,7 @@
     size="xs"
     outline
     class="h-4 w-4 rounded-full border-red-900 p-4 hover:border-2 hover:bg-transparent dark:hover:border-red-200 hover:dark:bg-transparent"
-    onclick={(e) => {
+    onclick={(e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       onCancel();
@@ -55,7 +55,7 @@
     size="xs"
     outline
     class="h-4 w-4 rounded-full border-red-900 p-4 hover:border-2 hover:bg-transparent dark:hover:border-red-200 hover:dark:bg-transparent"
-    onclick={(e) => {
+    onclick={(e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       isDelete = true;

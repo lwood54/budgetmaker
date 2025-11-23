@@ -8,10 +8,9 @@
     budgets: BudgetWithRelations[];
     budgetItem?: BudgetItem;
     onSuccess?: () => void;
-    isHidingBudgetSelect?: boolean;
   };
 
-  let { budgets, budgetItem, onSuccess, isHidingBudgetSelect = false }: _Props = $props();
+  let { budgets, budgetItem, onSuccess }: _Props = $props();
 
   let selectedBudgetId = $state('');
   let name = $state('');
@@ -25,12 +24,6 @@
       : '/budgets?/addBudgetItem';
   });
 
-  const budgetOptions = $derived(
-    budgets.map((b) => ({
-      value: b.uuid,
-      name: b.name,
-    })),
-  );
 
   const categoryOptions = $derived(() => {
     if (!selectedBudgetId) return [];

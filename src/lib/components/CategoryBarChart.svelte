@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Chart, P } from 'flowbite-svelte';
+  import { Chart } from '@flowbite-svelte-plugins/chart';
+  import { P } from 'flowbite-svelte';
   import { getIsDarkMode } from '$lib/store/app.svelte';
   import { browser } from '$app/environment';
   import { formatCurrency } from '$lib/utils/money';

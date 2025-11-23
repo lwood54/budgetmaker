@@ -58,9 +58,6 @@
 
 <div class="@container flex gap-4 p-4">
   <div class="flex flex-col gap-4 @max-[1060px]:w-full dark:border-neutral-700">
-    <!-- <div class="@min-[1060px]:hidden">
-      <BudgetFormsView budgets={data.budgets} />
-    </div> -->
     <Search clearable clearableOnClick={() => (search = '')} bind:value={search} />
     <div
       class="flex h-[calc(100vh-15rem)] flex-col rounded-lg bg-neutral-400 p-4 @min-[1060px]:max-w-[300px] dark:border-neutral-700 dark:bg-neutral-600"

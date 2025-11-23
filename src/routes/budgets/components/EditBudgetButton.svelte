@@ -23,7 +23,7 @@
     size="xs"
     class="border-primary-900 dark:hover:border-primary-200 h-4 w-4 rounded-full p-4 hover:border-2 hover:bg-transparent hover:dark:bg-transparent"
     outline
-    onclick={(e) => {
+    onclick={(e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       onEdit?.();

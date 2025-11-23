@@ -52,3 +52,32 @@ export const getCategoriesByBudgetId = async (db: DrizzleClient, budgetId: strin
     .where(eq(categories.budgetId, budgetId))
     .orderBy(desc(categories.name));
 };
+
+export const getBudgetItemsByCategoryId = async (
+  db: DrizzleClient,
+  categoryId: string,
+  budgetId: string,
+) => {
+  // First verify the category belongs to the budget
+  const category = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.uuid, categoryId))
+    .limit(1);
+
+  if (category.length === 0 || category[0].budgetId !== budgetId) {
+    return null;
+  }
+
+  // Get all budget items for this category
+  const items = await db
+    .select()
+    .from(budgetItems)
+    .where(eq(budgetItems.categoryId, categoryId))
+    .orderBy(desc(budgetItems.purchaseDate));
+
+  return {
+    category: category[0],
+    items,
+  };
+};
