@@ -123,3 +123,14 @@ body {
     cursor: pointer;
   }
 }
+
+/* Delete button styles - red outline on hover */
+.delete-btn:hover {
+  border: 2px solid rgb(220 38 38) !important;
+  background-color: transparent !important;
+}
+
+.dark .delete-btn:hover {
+  border-color: rgb(248 113 113) !important;
+  background-color: transparent !important;
+}

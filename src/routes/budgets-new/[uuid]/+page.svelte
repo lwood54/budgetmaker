@@ -1,17 +1,22 @@
 <script lang="ts">
-  import { Button, P, Progressbar, Search, Select } from 'flowbite-svelte';
-  import { ArrowLeftOutline, AdjustmentsHorizontalOutline } from 'flowbite-svelte-icons';
-  import { getBudget } from '$lib/api/budgets.remote';
+  import { Button, P, Progressbar, Search, Modal } from 'flowbite-svelte';
+  import {
+    ArrowLeftOutline,
+    AdjustmentsHorizontalOutline,
+    TrashBinOutline,
+  } from 'flowbite-svelte-icons';
+  import { getBudget, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
   import { getCategoryTotalSpent, getCategory } from '$lib/helpers/budgets';
   import { isoStringToDate } from '$lib/helpers/conversions';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
   import type { BudgetItem } from '$lib/server/db/schema';
+  import Select from '$lib/components/Select.svelte';
 
   let { params } = $props();
 
-  const budget = await getBudget(params.uuid);
+  const budget = $derived(await getBudget(params.uuid));
 
   // Search and filter state
   let searchQuery = $state('');
@@ -19,6 +24,16 @@
   let selectedCategoryFilter = $state<string>('all');
   let showFilters = $state(false);
   let showCategoryFilters = $state(false);
+
+  // Delete state for purchases
+  let deleteModalOpen = $state(false);
+  let itemToDelete = $state<BudgetItem | null>(null);
+  let isDeleting = $state(false);
+
+  // Delete state for categories
+  let deleteCategoryModalOpen = $state(false);
+  let categoryToDelete = $state<CategoryWithStatus | null>(null);
+  let isDeletingCategory = $state(false);
 
   // Category sort state
   type CategorySortOption =
@@ -66,10 +81,11 @@
   // Filter categories
   const categoryFilterOptions = $derived(() => {
     if (!budget) return [];
-    return [
+    const options = [
       { value: 'all', name: 'All Categories' },
       ...budget.categories.map((cat) => ({ value: cat.uuid, name: cat.name })),
     ];
+    return options;
   });
 
   // Filter and search purchases
@@ -95,9 +111,10 @@
     }
 
     // Sort by date (newest first)
-    return items.sort((a, b) => {
+    const sorted = items.sort((a, b) => {
       return new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime();
     });
+    return sorted;
   });
 
   // Filter categories by status
@@ -185,10 +202,45 @@
 
     return categories;
   });
+
+  function handleDeleteClick(item: BudgetItem, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    itemToDelete = item;
+    deleteModalOpen = true;
+  }
+
+  function handleDeleteCancel() {
+    deleteModalOpen = false;
+    itemToDelete = null;
+  }
+
+  async function handleDeleteSuccess() {
+    await getBudget(params.uuid).refresh();
+    deleteModalOpen = false;
+    itemToDelete = null;
+  }
+
+  function handleDeleteCategoryClick(category: CategoryWithStatus, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    categoryToDelete = category;
+    deleteCategoryModalOpen = true;
+  }
+
+  function handleDeleteCategoryCancel() {
+    deleteCategoryModalOpen = false;
+    categoryToDelete = null;
+  }
+
+  async function handleDeleteCategorySuccess() {
+    await getBudget(params.uuid).refresh();
+    deleteCategoryModalOpen = false;
+    categoryToDelete = null;
+  }
 </script>
 
 <div class="min-h-screen bg-neutral-50 pb-6 dark:bg-neutral-900">
-  <!-- Header -->
   <header
     class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95"
   >
@@ -217,7 +269,6 @@
 
   {#if budget}
     <main class="px-4 py-4">
-      <!-- Budget Summary Card -->
       <div
         class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
       >
@@ -236,9 +287,7 @@
           />
         </div>
 
-        <div
-          class="grid grid-cols-2 gap-4 border-t border-neutral-200 pt-4 dark:border-neutral-700"
-        >
+        <div class="grid grid-cols-2 gap-4 pt-4">
           <div>
             <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">Spent</P>
             <P size="lg" class="font-semibold text-green-600 dark:text-green-400">
@@ -266,8 +315,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Categories Section -->
       {#if budget.categories.length > 0}
         <div class="mb-6">
           <div class="mb-3 flex items-center justify-between gap-2">
@@ -286,7 +333,6 @@
             </Button>
           </div>
 
-          <!-- Search and Filter Controls -->
           {#if showCategoryFilters}
             <div
               class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
@@ -343,7 +389,13 @@
                   class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
                   role="button"
                   tabindex="0"
-                  onclick={() => goto(Route.category_purchases(params.uuid, category.uuid))}
+                  onclick={(e) => {
+                    // Don't navigate if clicking on the delete button
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('.delete-btn')) {
+                      goto(Route.category_purchases(params.uuid, category.uuid));
+                    }
+                  }}
                   onkeydown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
@@ -355,9 +407,23 @@
                     <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
                       {category.name}
                     </P>
-                    <P size="xs" class="text-neutral-500 dark:text-neutral-400">
-                      {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
-                    </P>
+                    <div class="flex items-center gap-2">
+                      <P size="xs" class="text-neutral-500 dark:text-neutral-400">
+                        {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
+                      </P>
+                      <Button
+                        color="red"
+                        size="xs"
+                        pill
+                        outline
+                        class="delete-btn h-8 w-8 border-none p-0 shadow-sm transition-all hover:shadow-md"
+                        onclick={(e: MouseEvent) => handleDeleteCategoryClick(category, e)}
+                        disabled={isDeletingCategory}
+                        aria-label="Delete category"
+                      >
+                        <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
+                      </Button>
+                    </div>
                   </div>
                   <Progressbar
                     progress={categoryProgress}
@@ -365,9 +431,7 @@
                     class="mb-2"
                     style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
                   />
-                  <div
-                    class="flex items-center justify-between border-t border-neutral-200 pt-2 dark:border-neutral-700"
-                  >
+                  <div class="flex items-center justify-between pt-2">
                     <div class="flex items-center gap-1.5">
                       <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
                       <span class="text-xs text-neutral-600 dark:text-neutral-400">
@@ -404,8 +468,6 @@
           </div>
         </div>
       {/if}
-
-      <!-- Purchases Section -->
       <div>
         <div class="mb-3 flex items-center justify-between gap-2">
           <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">
@@ -427,8 +489,6 @@
             <AdjustmentsHorizontalOutline class="text-primary-900 dark:text-primary-200 h-4 w-4" />
           </Button>
         </div>
-
-        <!-- Search and Filter Controls -->
         {#if showFilters}
           <div
             class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
@@ -474,9 +534,23 @@
                         </span>
                       </div>
                     </div>
-                    <P size="sm" class="text-primary-900 dark:text-primary-200 ml-3 font-semibold">
-                      {formatCurrency(item.amount)}
-                    </P>
+                    <div class="ml-3 flex items-center gap-2">
+                      <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                        {formatCurrency(item.amount)}
+                      </P>
+                      <Button
+                        color="red"
+                        size="xs"
+                        pill
+                        outline
+                        class="delete-btn h-8 w-8 border-none p-0 shadow-sm transition-all hover:shadow-md"
+                        onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
+                        disabled={isDeleting}
+                        aria-label="Delete purchase"
+                      >
+                        <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               {/each}
@@ -511,4 +585,99 @@
       <Button color="primary" onclick={() => goto(Route.budgets_new)}>Back to Budgets</Button>
     </main>
   {/if}
+
+  <Modal title="Delete Purchase" bind:open={deleteModalOpen} autoclose>
+    <P size="lg">Are you sure you want to delete this purchase?</P>
+    <P class="text-primary-900 dark:text-primary-200 font-semibold">
+      {itemToDelete?.name}
+    </P>
+    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
+      This action cannot be undone.
+    </P>
+
+    {#snippet footer()}
+      <div class="flex w-full justify-between gap-4">
+        <Button onclick={handleDeleteCancel} color="alternative" disabled={isDeleting}>
+          Cancel
+        </Button>
+        <form
+          {...deleteBudgetItem.enhance(async ({ form, submit }) => {
+            isDeleting = true;
+            try {
+              await submit();
+
+              if (deleteBudgetItem.result?.success === true) {
+                form.reset();
+                await handleDeleteSuccess();
+              }
+            } catch (error) {
+              console.error('Error deleting purchase:', error);
+            } finally {
+              isDeleting = false;
+            }
+          })}
+        >
+          <input type="hidden" name="budgetItemId" value={itemToDelete?.uuid || ''} />
+          <Button color="red" type="submit" disabled={isDeleting || !itemToDelete}>Delete</Button>
+        </form>
+      </div>
+    {/snippet}
+  </Modal>
+
+  <Modal title="Delete Category" bind:open={deleteCategoryModalOpen} autoclose>
+    <P size="lg">Are you sure you want to delete this category?</P>
+    <P class="text-primary-900 dark:text-primary-200 font-semibold">
+      {categoryToDelete?.name}
+    </P>
+    {#if categoryToDelete && budget}
+      {@const categoryUuid = categoryToDelete.uuid}
+      {@const itemCount = budget.budgetItems.filter(
+        (item) => item.categoryId === categoryUuid,
+      ).length}
+      {#if itemCount > 0}
+        <P size="sm" class="mt-2 text-yellow-600 dark:text-yellow-400">
+          Warning: This category has {itemCount}
+          {itemCount === 1 ? 'purchase' : 'purchases'}. All purchases in this category will also be
+          deleted.
+        </P>
+      {/if}
+    {/if}
+    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
+      This action cannot be undone.
+    </P>
+
+    {#snippet footer()}
+      <div class="flex w-full justify-between gap-4">
+        <Button
+          onclick={handleDeleteCategoryCancel}
+          color="alternative"
+          disabled={isDeletingCategory}
+        >
+          Cancel
+        </Button>
+        <form
+          {...deleteCategory.enhance(async ({ form, submit }) => {
+            isDeletingCategory = true;
+            try {
+              await submit();
+
+              if (deleteCategory.result?.success === true) {
+                form.reset();
+                await handleDeleteCategorySuccess();
+              }
+            } catch (error) {
+              console.error('Error deleting category:', error);
+            } finally {
+              isDeletingCategory = false;
+            }
+          })}
+        >
+          <input type="hidden" name="categoryId" value={categoryToDelete?.uuid || ''} />
+          <Button color="red" type="submit" disabled={isDeletingCategory || !categoryToDelete}>
+            Delete
+          </Button>
+        </form>
+      </div>
+    {/snippet}
+  </Modal>
 </div>

@@ -1,18 +1,15 @@
 <script lang="ts">
-  import { Button, P, Select, Modal } from 'flowbite-svelte';
+  import { Button, P, Modal, Progressbar } from 'flowbite-svelte';
+  import Select from '$lib/components/Select.svelte';
   import { PlusOutline, TrashBinOutline } from 'flowbite-svelte-icons';
   import { getBudgets, deleteBudget } from '$lib/api/budgets.remote';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { formatCurrency } from '$lib/utils/money';
-  import { enhance } from '$app/forms';
-  import AddItemDrawer from './components/AddItemDrawer.svelte';
 
-  const budgetsQuery = getBudgets();
-  const budgets = $derived(await budgetsQuery);
+  const budgets = $derived(await getBudgets());
 
-  let drawerOpen = $state(false);
   let deleteModalOpen = $state(false);
   let budgetToDelete = $state<BudgetWithRelations | null>(null);
   let isDeleting = $state(false);
@@ -26,10 +23,6 @@
     | 'amount-high-low';
 
   let sortBy = $state<SortOption>('created-date');
-
-  function handleCreateBudget() {
-    drawerOpen = true;
-  }
 
   function handleBudgetClick(budgetId: string) {
     goto(Route.budget_new(budgetId));
@@ -48,7 +41,7 @@
   }
 
   async function handleDeleteSuccess() {
-    await budgetsQuery.refresh();
+    await getBudgets().refresh();
     deleteModalOpen = false;
     budgetToDelete = null;
   }
@@ -66,6 +59,41 @@
   // Calculate budget remaining
   function getBudgetRemaining(budget: BudgetWithRelations): number {
     return getBudgetAmount(budget) - getBudgetSpent(budget);
+  }
+
+  // Calculate budget progress percentage
+  function getBudgetProgress(budgetSpent: number, budgetLimit: number): number {
+    if (budgetLimit > 0 && budgetSpent > 0) {
+      const progress = (budgetSpent / budgetLimit) * 100;
+      // Cap progress at 100% to prevent overflow
+      return Math.min(progress, 100);
+    }
+    if (budgetLimit > 0 && budgetSpent === 0) {
+      return 0;
+    }
+    return 0;
+  }
+
+  // Get progress color based on budget status
+  function getProgressColor(budgetSpent: number, budgetLimit: number): 'green' | 'yellow' | 'red' {
+    if (budgetSpent > budgetLimit) {
+      return 'red';
+    }
+    if (budgetSpent > budgetLimit * 0.8) {
+      return 'yellow';
+    }
+    return 'green';
+  }
+
+  // Get remaining amount color class based on budget status
+  function getRemainingColorClass(isOverBudget: boolean, isWithin20Percent: boolean): string {
+    if (isOverBudget) {
+      return 'text-red-600 dark:text-red-400';
+    }
+    if (isWithin20Percent) {
+      return 'text-yellow-600 dark:text-yellow-400';
+    }
+    return 'text-green-600 dark:text-green-400';
   }
 
   // Get most recent activity date (most recent purchase or updatedAt)
@@ -123,7 +151,6 @@
 </script>
 
 <div class="min-h-screen bg-neutral-50 pb-24 dark:bg-neutral-900">
-  <!-- Header -->
   <header
     class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95"
   >
@@ -154,10 +181,8 @@
     </div>
   </header>
 
-  <!-- Budgets List -->
   <main class="px-4 py-4">
     {#if budgets.length === 0}
-      <!-- Empty State -->
       <div class="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div class="bg-primary-100 dark:bg-primary-900/30 mb-6 rounded-full p-6">
           <PlusOutline class="text-primary-600 dark:text-primary-400 h-12 w-12" />
@@ -168,19 +193,21 @@
         <p class="mb-6 max-w-xs text-sm text-neutral-600 dark:text-neutral-400">
           Start tracking your expenses and managing your finances with a new budget.
         </p>
-        <Button color="primary" size="lg" class="w-full max-w-xs" onclick={handleCreateBudget}>
+        <Button color="primary" size="lg" class="w-full max-w-xs">
           <PlusOutline class="mr-2" />
           Create Budget
         </Button>
       </div>
     {:else}
-      <!-- Budget Cards -->
       <div class="space-y-3">
         {#each sortedBudgets() as budget (budget.uuid)}
           {@const budgetAmount = getBudgetAmount(budget)}
           {@const budgetSpent = getBudgetSpent(budget)}
           {@const budgetRemaining = getBudgetRemaining(budget)}
           {@const isOverBudget = budgetSpent > budgetAmount}
+          {@const budgetProgress = getBudgetProgress(budgetSpent, budgetAmount)}
+          {@const progressColor = getProgressColor(budgetSpent, budgetAmount)}
+          {@const isWithin20Percent = budgetSpent > budgetAmount * 0.8}
           <div
             class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
             role="button"
@@ -209,8 +236,9 @@
               <Button
                 color="red"
                 size="xs"
+                pill
                 outline
-                class="ml-2 flex-shrink-0 border-red-600 p-2 hover:bg-red-50 dark:border-red-400 dark:hover:bg-red-900/20"
+                class="delete-btn ml-2 h-8 w-8 flex-shrink-0 border-none p-0 shadow-sm transition-all hover:shadow-md"
                 onclick={(e: MouseEvent) => handleDeleteClick(budget, e)}
                 disabled={isDeleting}
                 aria-label="Delete budget"
@@ -218,8 +246,6 @@
                 <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
               </Button>
             </div>
-
-            <!-- Budget Amount Info -->
             <div
               class="mb-3 grid grid-cols-2 gap-3 border-t border-neutral-200 pt-3 dark:border-neutral-700"
             >
@@ -235,22 +261,27 @@
                 </P>
                 <P
                   size="sm"
-                  class="font-semibold {isOverBudget
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-green-600 dark:text-green-400'}"
+                  class={`font-semibold ${getRemainingColorClass(isOverBudget, isWithin20Percent)}`}
                 >
                   {#if isOverBudget}
-                    by {formatCurrency(Math.abs(budgetRemaining))}
+                    Over by {formatCurrency(Math.abs(budgetRemaining))}
                   {:else}
                     {formatCurrency(budgetRemaining)}
                   {/if}
                 </P>
               </div>
             </div>
+            {#if budgetAmount > 0}
+              <div class="mb-3">
+                <Progressbar
+                  progress={budgetProgress}
+                  color={progressColor}
+                  style={isOverBudget ? 'background-color: rgb(239 68 68);' : ''}
+                />
+              </div>
+            {/if}
 
-            <div
-              class="flex items-center gap-4 border-t border-neutral-200 pt-3 dark:border-neutral-700"
-            >
+            <div class="flex items-center gap-4">
               <div class="flex items-center gap-1.5">
                 <div class="bg-secondary-500 dark:bg-secondary-400 h-2 w-2 rounded-full"></div>
                 <span class="text-sm text-neutral-600 dark:text-neutral-400">
@@ -272,25 +303,6 @@
     {/if}
   </main>
 
-  <!-- Floating Action Button -->
-  {#if budgets.length > 0}
-    <div class="fixed right-4 bottom-6 z-20">
-      <Button
-        color="primary"
-        size="xl"
-        pill
-        class="h-14 w-14 shadow-lg transition-shadow hover:shadow-xl"
-        onclick={handleCreateBudget}
-        aria-label="Create new budget"
-      >
-        <PlusOutline class="h-6 w-6" />
-      </Button>
-    </div>
-  {/if}
-
-  <AddItemDrawer bind:open={drawerOpen} />
-
-  <!-- Delete Confirmation Modal -->
   <Modal title="Delete Budget" bind:open={deleteModalOpen} autoclose>
     <P size="lg">Are you sure you want to delete this budget?</P>
     <P class="text-primary-900 dark:text-primary-200 font-semibold">
@@ -306,22 +318,21 @@
           Cancel
         </Button>
         <form
-          {...deleteBudget}
-          use:enhance={() => {
+          {...deleteBudget.enhance(async ({ form, submit }) => {
             isDeleting = true;
-            return async ({ result, update: _update }) => {
-              isDeleting = false;
-              if (result.type === 'success') {
+            try {
+              await submit();
+
+              if (deleteBudget.result?.success === true) {
+                form.reset();
                 await handleDeleteSuccess();
-              } else if (result.type === 'failure') {
-                const errorData = result.data as { error?: { message?: string } } | undefined;
-                console.error('Failed to delete budget:', errorData?.error?.message);
-              } else if (result.type === 'error') {
-                console.error('Error deleting budget:', result.error?.message);
               }
-              // Don't call update() - we're handling refresh manually via budgetsQuery.refresh()
-            };
-          }}
+            } catch (error) {
+              console.error('Error deleting budget:', error);
+            } finally {
+              isDeleting = false;
+            }
+          })}
         >
           <input type="hidden" name="budgetId" value={budgetToDelete?.uuid || ''} />
           <Button color="red" type="submit" disabled={isDeleting || !budgetToDelete}>Delete</Button>

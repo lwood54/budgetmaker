@@ -1,18 +1,21 @@
 <script lang="ts">
-  import { Button, P, Progressbar } from 'flowbite-svelte';
-  import { ArrowLeftOutline } from 'flowbite-svelte-icons';
-  import { getCategoryPurchases } from '$lib/api/budgets.remote';
+  import { Button, P, Progressbar, Modal } from 'flowbite-svelte';
+  import { ArrowLeftOutline, TrashBinOutline } from 'flowbite-svelte-icons';
+  import { getCategoryPurchases, deleteBudgetItem } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
   import { isoStringToDate } from '$lib/helpers/conversions';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
+  import type { BudgetItem } from '$lib/server/db/schema';
 
   let { params } = $props();
 
-  const categoryData = await getCategoryPurchases({
-    categoryId: params.categoryId,
-    budgetId: params.uuid,
-  });
+  const categoryData = $derived(
+    await getCategoryPurchases({
+      categoryId: params.categoryId,
+      budgetId: params.uuid,
+    }),
+  );
 
   function getCategoryProgress(categorySpent: number, categoryLimit: number) {
     if (categoryLimit > 0 && categorySpent > 0) {
@@ -44,6 +47,32 @@
     }
     return 'green';
   });
+
+  // Delete state
+  let deleteModalOpen = $state(false);
+  let itemToDelete = $state<BudgetItem | null>(null);
+  let isDeleting = $state(false);
+
+  function handleDeleteClick(item: BudgetItem, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    itemToDelete = item;
+    deleteModalOpen = true;
+  }
+
+  function handleDeleteCancel() {
+    deleteModalOpen = false;
+    itemToDelete = null;
+  }
+
+  async function handleDeleteSuccess() {
+    await getCategoryPurchases({
+      categoryId: params.categoryId,
+      budgetId: params.uuid,
+    }).refresh();
+    deleteModalOpen = false;
+    itemToDelete = null;
+  }
 </script>
 
 <div class="min-h-screen bg-neutral-50 pb-6 dark:bg-neutral-900">
@@ -149,9 +178,23 @@
                       {isoStringToDate(item.purchaseDate)}
                     </span>
                   </div>
-                  <P size="sm" class="text-primary-900 dark:text-primary-200 ml-3 font-semibold">
-                    {formatCurrency(item.amount)}
-                  </P>
+                  <div class="ml-3 flex items-center gap-2">
+                    <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                      {formatCurrency(item.amount)}
+                    </P>
+                    <Button
+                      color="red"
+                      size="xs"
+                      pill
+                      outline
+                      class="delete-btn h-8 w-8 border-none p-0 shadow-sm transition-all hover:shadow-md"
+                      onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
+                      disabled={isDeleting}
+                      aria-label="Delete purchase"
+                    >
+                      <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             {/each}
@@ -180,4 +223,43 @@
       </Button>
     </main>
   {/if}
+
+  <!-- Delete Confirmation Modal -->
+  <Modal title="Delete Purchase" bind:open={deleteModalOpen} autoclose>
+    <P size="lg">Are you sure you want to delete this purchase?</P>
+    <P class="text-primary-900 dark:text-primary-200 font-semibold">
+      {itemToDelete?.name}
+    </P>
+    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
+      This action cannot be undone.
+    </P>
+
+    {#snippet footer()}
+      <div class="flex w-full justify-between gap-4">
+        <Button onclick={handleDeleteCancel} color="alternative" disabled={isDeleting}>
+          Cancel
+        </Button>
+        <form
+          {...deleteBudgetItem.enhance(async ({ form, submit }) => {
+            isDeleting = true;
+            try {
+              await submit();
+
+              if (deleteBudgetItem.result?.success === true) {
+                form.reset();
+                await handleDeleteSuccess();
+              }
+            } catch (error) {
+              console.error('Error deleting purchase:', error);
+            } finally {
+              isDeleting = false;
+            }
+          })}
+        >
+          <input type="hidden" name="budgetItemId" value={itemToDelete?.uuid || ''} />
+          <Button color="red" type="submit" disabled={isDeleting || !itemToDelete}>Delete</Button>
+        </form>
+      </div>
+    {/snippet}
+  </Modal>
 </div>

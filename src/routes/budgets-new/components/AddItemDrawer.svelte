@@ -1,7 +1,12 @@
 <script lang="ts">
   import { Drawer, Button, P } from 'flowbite-svelte';
-  import { CloseOutline, ArrowLeftOutline } from 'flowbite-svelte-icons';
-  import { getBudgets } from '$lib/api/budgets.remote';
+  import {
+    ArrowLeftOutline,
+    FolderPlusOutline,
+    TagOutline,
+    ShoppingBagOutline,
+  } from 'flowbite-svelte-icons';
+  import { getBudgets, getCategories } from '$lib/api/budgets.remote';
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import AddBudget from './AddBudget.svelte';
   import AddCategory from './AddCategory.svelte';
@@ -15,8 +20,6 @@
   const budgets = await budgetsQuery;
 
   let currentStep = $state<DrawerStep>('select');
-  let isSubmitting = $state(false);
-  let formError = $state<string>('');
   let itemBudgetId = $state('');
 
   const budgetOptions = $derived(
@@ -26,20 +29,32 @@
     })),
   );
 
-  const categoryOptions = $derived(() => {
-    if (!itemBudgetId) return [];
-    const budget = budgets.find((b: BudgetWithRelations) => b.uuid === itemBudgetId);
-    return (
-      budget?.categories.map((c: { uuid: string; name: string }) => ({
-        value: c.uuid,
-        name: c.name,
-      })) ?? []
-    );
+  let categories = $state<Array<{ uuid: string; name: string }>>([]);
+
+  $effect(() => {
+    // Track itemBudgetId directly to ensure effect runs when it changes
+    const budgetId = itemBudgetId;
+
+    if (budgetId) {
+      getCategories(budgetId).then((cats) => {
+        // Only update if budgetId hasn't changed (avoid race conditions)
+        if (itemBudgetId === budgetId) {
+          categories = cats;
+        }
+      });
+    } else {
+      categories = [];
+    }
   });
 
+  const categoryOptions = $derived(
+    categories.map((c) => ({
+      value: c.uuid,
+      name: c.name,
+    })),
+  );
+
   function resetForms() {
-    formError = '';
-    isSubmitting = false;
     itemBudgetId = '';
   }
 
@@ -53,7 +68,6 @@
 
   function goToStep(step: DrawerStep) {
     currentStep = step;
-    formError = '';
   }
 
   async function handleSuccess() {
@@ -65,6 +79,8 @@
   }
 </script>
 
+<!-- <Drawer bind:open placement="right" class="z-50">
+  <div class="flex max-h-[100vh] w-full max-w-md flex-col bg-white dark:bg-neutral-800"> -->
 <Drawer bind:open placement="bottom" class="z-50">
   <div class="flex max-h-[90vh] flex-col bg-white dark:bg-neutral-800">
     <!-- Header -->
@@ -80,7 +96,6 @@
           outline
           class="border-none p-2"
           onclick={() => goToStep('select')}
-          disabled={isSubmitting}
         >
           <ArrowLeftOutline class="text-primary-900 dark:text-primary-200 h-5 w-5" />
         </Button>
@@ -93,48 +108,41 @@
         </P>
         <div class="w-9"></div>
       {/if}
-      <Button
-        color="alternative"
-        size="sm"
-        outline
-        class="border-none p-2"
-        onclick={handleClose}
-        disabled={isSubmitting}
-      >
-        <CloseOutline class="text-primary-900 dark:text-primary-200 h-5 w-5" />
-      </Button>
     </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto px-4 py-4">
       {#if currentStep === 'select'}
         <!-- Selection Step -->
-        <div class="space-y-3">
+        <div class="flex flex-wrap justify-between gap-3 max-[540px]:flex-col">
           <Button
             color="primary"
             size="lg"
-            class="w-full justify-start"
+            class="flex flex-col items-center justify-center gap-2 p-4 max-[540px]:h-auto max-[540px]:w-full min-[540px]:aspect-square min-[540px]:max-w-[150px] min-[540px]:min-w-[150px] min-[540px]:flex-1"
             onclick={() => goToStep('budget')}
           >
-            <P class="text-left">Create New Budget</P>
+            <FolderPlusOutline class="h-8 w-8" />
+            <P class="text-center text-sm">Create Budget</P>
           </Button>
           <Button
             color="primary"
             size="lg"
-            class="w-full justify-start"
+            class="flex flex-col items-center justify-center gap-2 p-4 max-[540px]:h-auto max-[540px]:w-full min-[540px]:aspect-square min-[540px]:max-w-[150px] min-[540px]:min-w-[150px] min-[540px]:flex-1"
             onclick={() => goToStep('category')}
             disabled={budgets.length === 0}
           >
-            <P class="text-left">Add Category</P>
+            <TagOutline class="h-8 w-8" />
+            <P class="text-center text-sm">Create Category</P>
           </Button>
           <Button
             color="primary"
             size="lg"
-            class="w-full justify-start"
+            class="flex flex-col items-center justify-center gap-2 p-4 max-[540px]:h-auto max-[540px]:w-full min-[540px]:aspect-square min-[540px]:max-w-[150px] min-[540px]:min-w-[150px] min-[540px]:flex-1"
             onclick={() => goToStep('item')}
             disabled={budgets.length === 0}
           >
-            <P class="text-left">Record Purchase</P>
+            <ShoppingBagOutline class="h-8 w-8" />
+            <P class="text-center text-sm">Record Purchase</P>
           </Button>
         </div>
       {:else if currentStep === 'budget'}
@@ -143,24 +151,16 @@
       {:else if currentStep === 'category'}
         <!-- Category Form -->
         <AddCategory
-          {isSubmitting}
-          {formError}
           {budgetOptions}
           selectedBudgetId={budgets.length === 1 ? budgets[0].uuid : ''}
-          onSubmittingChange={(value) => (isSubmitting = value)}
-          onErrorChange={(value) => (formError = value)}
           onSuccess={handleSuccess}
         />
       {:else if currentStep === 'item'}
         <!-- Item Form -->
         <AddItem
-          {isSubmitting}
-          {formError}
           {budgetOptions}
-          categoryOptions={categoryOptions()}
+          {categoryOptions}
           selectedBudgetId={budgets.length === 1 ? budgets[0].uuid : ''}
-          onSubmittingChange={(value) => (isSubmitting = value)}
-          onErrorChange={(value) => (formError = value)}
           onSuccess={handleSuccess}
           onBudgetChange={handleBudgetChange}
         />
