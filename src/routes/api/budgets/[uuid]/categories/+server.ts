@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
   if (!matchingBudget) {
     return new Response('Budget not found', { status: 404 });
   }
-  if (authHeader !== `Bearer ${matchingBudget[0].userId}`) {
+  if (authHeader !== `Bearer ${matchingBudget.userId}`) {
     return new Response('Unauthorized', { status: 401 });
   }
 

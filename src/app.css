@@ -3,8 +3,8 @@
 @plugin '@tailwindcss/typography';
 @plugin 'flowbite/plugin';
 
-@source "../node_modules/flowbite-svelte/dist";
-@source "../node_modules/flowbite-svelte-icons/dist";
+@source '../node_modules/flowbite-svelte/dist';
+@source '../node_modules/flowbite-svelte-icons/dist';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -122,4 +122,15 @@ body {
   button {
     cursor: pointer;
   }
+}
+
+/* Delete button styles - red outline on hover */
+.delete-btn:hover {
+  border: 2px solid rgb(220 38 38) !important;
+  background-color: transparent !important;
+}
+
+.dark .delete-btn:hover {
+  border-color: rgb(248 113 113) !important;
+  background-color: transparent !important;
 }

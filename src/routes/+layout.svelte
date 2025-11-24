@@ -1,15 +1,5 @@
 <script lang="ts">
-  import {
-    DarkMode,
-    Navbar,
-    NavHamburger,
-    NavUl,
-    NavLi,
-    P,
-    Drawer,
-    CloseButton,
-    Button,
-  } from 'flowbite-svelte';
+  import { DarkMode, Navbar, NavHamburger, NavUl, NavLi, P, Drawer, Button } from 'flowbite-svelte';
   import '../app.css';
   import { Route } from '$lib/constants/routes';
   import { page } from '$app/state';
@@ -37,7 +27,7 @@
   let scrollY = $state(0);
   let navbarOpacity = $state(0);
   let blurValue = $state(0);
-  let isDrawerHidden = $state(true);
+  let open = $state(false);
   let isDarkMode = $derived(getIsDarkMode());
 
   function updateScreenWidth() {
@@ -75,7 +65,7 @@
   });
 
   const closeDrawer = () => {
-    isDrawerHidden = true;
+    open = false;
   };
 </script>
 
@@ -87,7 +77,7 @@
 >
   <Navbar class="bg-transparent px-2 py-3">
     <div class="flex w-full items-center justify-between">
-      <NavHamburger onclick={() => (isDrawerHidden = !isDrawerHidden)} />
+      <NavHamburger onclick={() => (open = !open)} />
       <div class="flex items-center">
         <P size="xl" class={txtActiveClass}>BudgetmakerIO</P>
       </div>
@@ -106,7 +96,7 @@
             <NavLi
               activeClass={txtActiveClass}
               nonActiveClass={txtNonActiveClass}
-              href={Route.budgets}>Budgets</NavLi
+              href={Route.budgets_new}>Budgets</NavLi
             >
             <NavLi
               activeClass={txtActiveClass}
@@ -146,15 +136,11 @@
   </Navbar>
 </div>
 <!-- NAV FILLER -->
-<div class="mt-24"></div>
-<Drawer bind:hidden={isDrawerHidden}>
+<div class="mt-20"></div>
+<Drawer bind:open>
   <div
-    class="flex items-center justify-between border-b-2 border-neutral-300 dark:border-neutral-700"
-  >
-    <div class="flex w-full justify-end">
-      <CloseButton onclick={closeDrawer} class="mb-4 dark:text-white" />
-    </div>
-  </div>
+    class="mt-10 flex items-center justify-between border-b-2 border-neutral-300 dark:border-neutral-700"
+  ></div>
   <div class="flex flex-col gap-2 p-4">
     <ListItem onClick={closeDrawer} href={Route.home}>
       <HomeOutline class="text-primary-700 dark:text-primary-400" size="lg" />
@@ -165,7 +151,7 @@
       <P class="text-primary-700 dark:text-primary-400">Calculators</P>
     </ListItem>
     {#if data.user}
-      <ListItem onClick={closeDrawer} href={Route.budgets}>
+      <ListItem onClick={closeDrawer} href={Route.budgets_new}>
         <FileChartBarOutline class="text-primary-700 dark:text-primary-400" size="lg" />
         <P class="text-primary-700 dark:text-primary-400">Budgets</P>
       </ListItem>

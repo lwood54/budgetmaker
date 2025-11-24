@@ -1,6 +1,7 @@
 <script lang="ts">
   import { toLocalCurrency } from '$lib/helpers/conversions';
-  import { Card, Chart } from 'flowbite-svelte';
+  import { Card } from 'flowbite-svelte';
+  import { Chart } from '@flowbite-svelte-plugins/chart';
 
   let { balances }: { balances: number[] } = $props();
 </script>
