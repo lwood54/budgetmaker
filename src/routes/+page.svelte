@@ -11,10 +11,10 @@
 
 <div class="flex h-[calc(100vh-6rem)] items-center justify-center px-4">
   <div class="text-center">
-    <P size="5xl" class="text-primary-900 dark:text-primary-200 text-center font-bold">
+    <P size="6xl" class="text-primary-900 dark:text-primary-200 text-center font-bold">
       BudgetmakerIO
     </P>
-    <P size="lg" class="text-primary-800 dark:text-primary-400 text-center font-semibold">
+    <P size="xl" class="text-primary-800 dark:text-primary-400 text-center font-semibold">
       Take control of your finances and let us help you plan, track, and monitor your bills.
     </P>
   </div>
@@ -24,8 +24,8 @@
   <div class="h-24"></div>
 
   <div class="container mx-auto max-w-6xl">
-    <P size="4xl" class="mb-6 font-bold text-neutral-900 dark:text-neutral-50">Key Features</P>
-    <P size="lg" class="mb-12 text-neutral-700 dark:text-neutral-300">
+    <P size="5xl" class="mb-6 font-bold text-neutral-900 dark:text-neutral-50">Key Features</P>
+    <P size="xl" class="mb-12 text-neutral-700 dark:text-neutral-300">
       BudgetmakerIO offers a comprehensive suite of tools to help you manage your finances
       effectively.
     </P>
@@ -50,10 +50,10 @@
             />
           </svg>
         </div>
-        <h3 class="mb-2 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+        <h3 class="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
           Budget Tracking
         </h3>
-        <p class="text-neutral-700 dark:text-neutral-300">
+        <p class="text-lg text-neutral-700 dark:text-neutral-300">
           Easily track your purchases and stay within your budget. Categorize your spending and see
           where your money goes.
         </p>
@@ -78,10 +78,10 @@
             />
           </svg>
         </div>
-        <h3 class="mb-2 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+        <h3 class="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
           Financial Calculator
         </h3>
-        <p class="text-neutral-700 dark:text-neutral-300">
+        <p class="text-lg text-neutral-700 dark:text-neutral-300">
           Calculate various financial scenarios, including auto loans, mortgages, and investments.
           Make informed decisions about your financial future.
         </p>
@@ -106,10 +106,10 @@
             />
           </svg>
         </div>
-        <h3 class="mb-2 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+        <h3 class="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
           Credit Paydown Visualization
         </h3>
-        <p class="text-neutral-700 dark:text-neutral-300">
+        <p class="text-lg text-neutral-700 dark:text-neutral-300">
           Visualize how different payment strategies can help you pay down your credit faster. See
           the impact of extra payments and interest rates.
         </p>
@@ -117,12 +117,12 @@
     </div>
 
     <div class="mt-20 text-center">
-      <h2 class="mb-4 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
+      <h2 class="mb-4 text-4xl font-bold text-neutral-900 dark:text-neutral-50">
         Ready to Transform Your Financial Future?
       </h2>
       <a
         href="/signup"
-        class="bg-primary-600 hover:bg-primary-500 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 inline-block rounded-md px-6 py-3 text-white focus:ring-2 focus:ring-offset-2 focus:outline-none"
+        class="bg-primary-600 hover:bg-primary-500 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 inline-block rounded-md px-6 py-3 text-lg text-white focus:ring-2 focus:ring-offset-2 focus:outline-none"
       >
         Get Started
       </a>
@@ -146,7 +146,7 @@
           >Contact Us</a
         >
       </div>
-      <p class="mt-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
+      <p class="mt-8 text-center text-base text-neutral-500 dark:text-neutral-400">
         © 2025 BudgetmakerIO. All rights reserved.
       </p>
     </footer>

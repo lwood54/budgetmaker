@@ -115,14 +115,14 @@
       field={addBudgetItem.fields.name}
       placeholder="e.g., Milk"
       disabled={isSubmitting}
-      class="text-lg"
+      class="text-xl"
     />
   </div>
   <div>
     <Label for="item-date" class="mb-2 block">Date</Label>
     <Datepicker
       id="item-date"
-      inputClass="text-lg h-12"
+      inputClass="text-xl h-12"
       color="primary"
       bind:value={purchaseDate}
       autohide
@@ -135,7 +135,7 @@
       id="item-budget"
       name="budgetId"
       size="lg"
-      classes={{ select: 'h-12 truncate' }}
+      classes={{ select: 'h-12 truncate text-xl' }}
       items={budgetOptions}
       bind:value={itemBudgetId}
       disabled={isSubmitting}
@@ -148,7 +148,7 @@
       id="item-category"
       name="categoryId"
       size="lg"
-      classes={{ select: 'h-12 truncate' }}
+      classes={{ select: 'h-12 truncate text-xl' }}
       items={categoryOptions}
       bind:value={itemCategoryId}
       disabled={!itemBudgetId || categoryOptions.length === 0 || isSubmitting}
@@ -165,7 +165,7 @@
       min="0"
       placeholder="5.00"
       disabled={isSubmitting}
-      class="text-lg"
+      class="text-xl"
     />
   </div>
   <Button type="submit" color="primary" class="w-full" disabled={isSubmitting}>

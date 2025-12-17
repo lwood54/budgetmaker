@@ -36,7 +36,7 @@
 
   function handleScroll() {
     scrollY = window?.scrollY || 0;
-    navbarOpacity = Math.min(scrollY / 400, 0.95);
+    navbarOpacity = Math.min(scrollY / 100, 0.95);
     blurValue = Math.min(navbarOpacity * 4, 8);
   }
 
@@ -79,7 +79,7 @@
     <div class="flex w-full items-center justify-between">
       <NavHamburger onclick={() => (open = !open)} />
       <div class="flex items-center">
-        <P size="xl" class={txtActiveClass}>BudgetmakerIO</P>
+        <P size="2xl" class={txtActiveClass}>BudgetmakerIO</P>
       </div>
 
       <div class="flex items-center gap-4">
@@ -96,7 +96,7 @@
             <NavLi
               activeClass={txtActiveClass}
               nonActiveClass={txtNonActiveClass}
-              href={Route.budgets_new}>Budgets</NavLi
+              href={Route.budgets}>Budgets</NavLi
             >
             <NavLi
               activeClass={txtActiveClass}
@@ -151,7 +151,7 @@
       <P class="text-primary-700 dark:text-primary-400">Calculators</P>
     </ListItem>
     {#if data.user}
-      <ListItem onClick={closeDrawer} href={Route.budgets_new}>
+      <ListItem onClick={closeDrawer} href={Route.budgets}>
         <FileChartBarOutline class="text-primary-700 dark:text-primary-400" size="lg" />
         <P class="text-primary-700 dark:text-primary-400">Budgets</P>
       </ListItem>

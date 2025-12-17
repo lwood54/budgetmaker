@@ -67,7 +67,7 @@
       field={addCategory.fields.name}
       placeholder="e.g., Food"
       disabled={isSubmitting}
-      class="text-lg"
+      class="text-xl"
     />
   </div>
   <div>
@@ -76,7 +76,7 @@
       id="category-budget"
       name="budgetId"
       size="lg"
-      classes={{ select: 'h-12 truncate' }}
+      classes={{ select: 'h-12 truncate text-xl' }}
       items={budgetOptions}
       bind:value={selectedBudgetId}
       disabled={isSubmitting}
@@ -92,7 +92,7 @@
       min="0"
       placeholder="500.00"
       disabled={isSubmitting}
-      class="text-lg"
+      class="text-xl"
     />
   </div>
   <Button type="submit" color="primary" class="w-full" disabled={isSubmitting}>

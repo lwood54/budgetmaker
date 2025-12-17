@@ -282,6 +282,167 @@ export const deleteBudgetItem = form(
   },
 );
 
+export const updateBudget = form(
+  z.object({
+    budgetId: z.string().min(1, 'Budget ID is required'),
+    name: z.string().min(1, 'Budget name is required'),
+  }),
+  async ({ budgetId, name }, issue) => {
+    const event = getRequestEvent();
+
+    if (!event.locals.user?.userId) {
+      invalid(issue.budgetId('Unauthorized'));
+    }
+
+    // Verify the user owns the budget
+    const budget = await getBudgetById(event.locals.db, budgetId);
+
+    if (!budget || budget.userId !== event.locals.user.userId) {
+      invalid(issue.budgetId('Budget not found or unauthorized'));
+    }
+
+    // Update the budget
+    await event.locals.db
+      .update(budgets)
+      .set({
+        name,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(budgets.uuid, budgetId));
+
+    // Refresh all related queries
+    getBudgets().refresh();
+    getBudget(budgetId).refresh();
+
+    return {
+      success: true,
+    };
+  },
+);
+
+export const updateCategory = form(
+  z.object({
+    categoryId: z.string().min(1, 'Category ID is required'),
+    name: z.string().min(1, 'Category name is required'),
+    limit: z.coerce.number().positive('Limit must be greater than 0'),
+  }),
+  async ({ categoryId, name, limit }, issue) => {
+    const event = getRequestEvent();
+
+    if (!event.locals.user?.userId) {
+      invalid(issue.categoryId('Unauthorized'));
+    }
+
+    // Get the category and verify the user owns the budget
+    const category = await event.locals.db
+      .select()
+      .from(categories)
+      .where(eq(categories.uuid, categoryId))
+      .limit(1);
+
+    if (category.length === 0) {
+      invalid(issue.categoryId('Category not found'));
+    }
+
+    const budget = await getBudgetById(event.locals.db, category[0].budgetId);
+
+    if (!budget || budget.userId !== event.locals.user.userId) {
+      invalid(issue.categoryId('Budget not found or unauthorized'));
+    }
+
+    const limitCents = dollarsToCents(limit);
+
+    // Update the category
+    await event.locals.db
+      .update(categories)
+      .set({
+        name,
+        limit: limitCents,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(categories.uuid, categoryId));
+
+    // Refresh all related queries
+    const budgetId = category[0].budgetId;
+    getBudgets().refresh();
+    getBudget(budgetId).refresh();
+    getCategories(budgetId).refresh();
+
+    return {
+      success: true,
+    };
+  },
+);
+
+export const updateBudgetItem = form(
+  z.object({
+    budgetItemId: z.string().min(1, 'Budget item ID is required'),
+    name: z.string().min(1, 'Item name is required'),
+    amount: z.coerce.number().positive('Amount must be greater than 0'),
+    categoryId: z.string().min(1, 'Category is required'),
+    purchaseDate: z.string().min(1, 'Purchase date is required'),
+  }),
+  async ({ budgetItemId, name, amount, categoryId, purchaseDate }, issue) => {
+    const event = getRequestEvent();
+
+    if (!event.locals.user?.userId) {
+      invalid(issue.budgetItemId('Unauthorized'));
+    }
+
+    // Get the budget item and verify the user owns the budget
+    const budgetItem = await event.locals.db
+      .select()
+      .from(budgetItems)
+      .where(eq(budgetItems.uuid, budgetItemId))
+      .limit(1);
+
+    if (budgetItem.length === 0) {
+      invalid(issue.budgetItemId('Budget item not found'));
+    }
+
+    const budget = await getBudgetById(event.locals.db, budgetItem[0].budgetId);
+
+    if (!budget || budget.userId !== event.locals.user.userId) {
+      invalid(issue.budgetItemId('Budget not found or unauthorized'));
+    }
+
+    // Verify the category belongs to the budget
+    const category = await event.locals.db
+      .select()
+      .from(categories)
+      .where(eq(categories.uuid, categoryId))
+      .limit(1);
+
+    if (category.length === 0 || category[0].budgetId !== budget.uuid) {
+      invalid(issue.categoryId('Category not found or does not belong to budget'));
+    }
+
+    const amountCents = dollarsToCents(amount);
+
+    // Update the budget item
+    await event.locals.db
+      .update(budgetItems)
+      .set({
+        name,
+        amount: amountCents,
+        categoryId,
+        purchaseDate,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(budgetItems.uuid, budgetItemId));
+
+    // Refresh all related queries
+    const budgetId = budgetItem[0].budgetId;
+    getBudgets().refresh();
+    getBudget(budgetId).refresh();
+    getCategories(budgetId).refresh();
+
+    return {
+      success: true,
+    };
+  },
+);
+
 export const deleteCategory = form(
   z.object({
     categoryId: z.string().min(1, 'Category ID is required'),

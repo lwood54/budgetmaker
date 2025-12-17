@@ -73,7 +73,7 @@
 
   {#if field}
     {#each field.issues() ?? [] as issue}
-      <P size="sm" class="mt-1 text-red-600 dark:text-red-400">{issue.message}</P>
+      <P size="base" class="mt-1 text-red-600 dark:text-red-400">{issue.message}</P>
     {/each}
   {/if}
 </div>

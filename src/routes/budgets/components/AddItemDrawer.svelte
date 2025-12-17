@@ -17,10 +17,38 @@
   let { open = $bindable(false) } = $props();
 
   const budgetsQuery = getBudgets();
-  const budgets = await budgetsQuery;
+  let budgets = $state<BudgetWithRelations[]>([]);
+
+  // Initial load
+  budgetsQuery.then((result) => {
+    budgets = result;
+  });
 
   let currentStep = $state<DrawerStep>('select');
   let itemBudgetId = $state('');
+
+  // Load budgets when drawer opens or when navigating to steps that need them
+  async function loadBudgets() {
+    await budgetsQuery.refresh();
+    budgets = await budgetsQuery;
+  }
+
+  // Load budgets when drawer opens and reset to select step
+  $effect(() => {
+    if (open) {
+      // Ensure we start at the select step when drawer opens
+      currentStep = 'select';
+      resetForms();
+      loadBudgets();
+    }
+  });
+
+  // Refresh budgets when navigating to category or item steps
+  $effect(() => {
+    if (open && (currentStep === 'category' || currentStep === 'item')) {
+      loadBudgets();
+    }
+  });
 
   const budgetOptions = $derived(
     budgets.map((b: BudgetWithRelations) => ({
@@ -31,20 +59,22 @@
 
   let categories = $state<Array<{ uuid: string; name: string }>>([]);
 
-  $effect(() => {
-    // Track itemBudgetId directly to ensure effect runs when it changes
-    const budgetId = itemBudgetId;
-
+  async function loadCategories(budgetId: string) {
     if (budgetId) {
-      getCategories(budgetId).then((cats) => {
-        // Only update if budgetId hasn't changed (avoid race conditions)
-        if (itemBudgetId === budgetId) {
-          categories = cats;
-        }
-      });
+      const cats = await getCategories(budgetId);
+      // Only update if budgetId hasn't changed (avoid race conditions)
+      if (itemBudgetId === budgetId) {
+        categories = cats;
+      }
     } else {
       categories = [];
     }
+  }
+
+  $effect(() => {
+    // Track itemBudgetId directly to ensure effect runs when it changes
+    const budgetId = itemBudgetId;
+    loadCategories(budgetId);
   });
 
   const categoryOptions = $derived(
@@ -56,21 +86,40 @@
 
   function resetForms() {
     itemBudgetId = '';
+    categories = [];
   }
 
   function handleClose() {
+    // Reset to select step immediately before closing
+    currentStep = 'select';
+    resetForms();
     open = false;
-    setTimeout(() => {
-      currentStep = 'select';
-      resetForms();
-    }, 300);
   }
 
-  function goToStep(step: DrawerStep) {
+  async function goToStep(step: DrawerStep) {
     currentStep = step;
+
+    // Refresh budgets when navigating to category or item steps
+    if (step === 'category' || step === 'item') {
+      await loadBudgets();
+    }
+
+    // Refresh categories when navigating to item step
+    if (step === 'item' && itemBudgetId) {
+      const cats = await getCategories(itemBudgetId);
+      categories = cats;
+    }
   }
 
   async function handleSuccess() {
+    // Refresh budgets after successful creation
+    await loadBudgets();
+
+    // If we're on the item step and have a budget selected, refresh categories too
+    if (currentStep === 'item' && itemBudgetId) {
+      await loadCategories(itemBudgetId);
+    }
+
     handleClose();
   }
 
@@ -88,7 +137,7 @@
       class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
     >
       {#if currentStep === 'select'}
-        <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">Add New</P>
+        <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Add New</P>
       {:else}
         <Button
           color="alternative"
@@ -99,7 +148,7 @@
         >
           <ArrowLeftOutline class="text-primary-900 dark:text-primary-200 h-5 w-5" />
         </Button>
-        <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">
+        <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">
           {currentStep === 'budget'
             ? 'New Budget'
             : currentStep === 'category'
@@ -122,7 +171,7 @@
             onclick={() => goToStep('budget')}
           >
             <FolderPlusOutline class="h-8 w-8" />
-            <P class="text-center text-sm">Create Budget</P>
+            <P class="text-center text-base">Create Budget</P>
           </Button>
           <Button
             color="primary"
@@ -132,7 +181,7 @@
             disabled={budgets.length === 0}
           >
             <TagOutline class="h-8 w-8" />
-            <P class="text-center text-sm">Create Category</P>
+            <P class="text-center text-base">Create Category</P>
           </Button>
           <Button
             color="primary"
@@ -142,7 +191,7 @@
             disabled={budgets.length === 0}
           >
             <ShoppingBagOutline class="h-8 w-8" />
-            <P class="text-center text-sm">Record Purchase</P>
+            <P class="text-center text-base">Record Purchase</P>
           </Button>
         </div>
       {:else if currentStep === 'budget'}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button, Label } from 'flowbite-svelte';
   import Input from '$lib/components/Input.svelte';
-  import { addBudget } from '$lib/api/budgets.remote';
+  import { addBudget, getBudgets } from '$lib/api/budgets.remote';
 
   type Props = {
     onSuccess: () => void;
@@ -19,6 +19,8 @@
 
       if (addBudget.result?.success === true) {
         form.reset();
+        // Refresh budgets list
+        await getBudgets().refresh();
         onSuccess();
       }
     } catch (error) {
@@ -35,7 +37,7 @@
       field={addBudget.fields.name}
       placeholder="e.g., Groceries"
       disabled={isSubmitting}
-      class="text-lg"
+      class="text-xl"
     />
   </div>
   <Button type="submit" color="primary" class="w-full" disabled={isSubmitting}>

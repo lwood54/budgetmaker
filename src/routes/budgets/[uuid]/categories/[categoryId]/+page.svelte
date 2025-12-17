@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button, P, Progressbar, Modal } from 'flowbite-svelte';
-  import { ArrowLeftOutline, TrashBinOutline } from 'flowbite-svelte-icons';
+  import { ArrowLeftOutline } from 'flowbite-svelte-icons';
+  import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import { getCategoryPurchases, deleteBudgetItem } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
   import { isoStringToDate } from '$lib/helpers/conversions';
@@ -86,18 +87,18 @@
         size="sm"
         outline
         class="border-none p-2"
-        onclick={() => goto(Route.budget_new(params.uuid))}
+        onclick={() => goto(Route.budget(params.uuid))}
         aria-label="Back to budget"
       >
         <ArrowLeftOutline class="text-primary-900 dark:text-primary-200 h-5 w-5" />
       </Button>
       <div class="min-w-0 flex-1">
         {#if categoryData}
-          <P size="xl" class="text-primary-900 dark:text-primary-200 truncate font-bold">
+          <P size="2xl" class="text-primary-900 dark:text-primary-200 truncate font-bold">
             {categoryData.category.name}
           </P>
         {:else}
-          <P size="xl" class="text-primary-900 dark:text-primary-200 font-bold">
+          <P size="2xl" class="text-primary-900 dark:text-primary-200 font-bold">
             Category Not Found
           </P>
         {/if}
@@ -107,41 +108,36 @@
 
   {#if categoryData}
     <main class="px-4 py-4">
-      <!-- Category Summary Card -->
-      <div
-        class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-      >
-        <div class="mb-4">
-          <div class="mb-2 flex items-center justify-between">
-            <P size="sm" class="text-neutral-600 dark:text-neutral-400">Category Limit</P>
-            <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">
+      <div class="mb-8 border-b border-neutral-200 pb-8 dark:border-neutral-800">
+        <div class="mb-6">
+          <div class="mb-4 flex items-baseline justify-start gap-4">
+            <P size="base" class="text-neutral-600 dark:text-neutral-400">Category Limit</P>
+            <P size="3xl" class="text-primary-900 dark:text-primary-200 font-bold">
               {formatCurrency(categoryLimit)}
             </P>
           </div>
           <Progressbar
             progress={categoryProgress}
             color={progressColor()}
-            class="mb-2"
+            class="h-3"
             style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
           />
         </div>
 
-        <div
-          class="grid grid-cols-2 gap-4 border-t border-neutral-200 pt-4 dark:border-neutral-700"
-        >
+        <div class="full flex justify-between">
           <div>
-            <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">Spent</P>
-            <P size="lg" class="font-semibold text-green-600 dark:text-green-400">
+            <P size="base" class="mb-2 text-neutral-600 dark:text-neutral-400">Spent</P>
+            <P size="2xl" class="font-bold text-green-600 dark:text-green-400">
               {formatCurrency(categorySpent)}
             </P>
           </div>
           <div>
-            <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">
+            <P size="base" class="mb-2 text-neutral-600 dark:text-neutral-400">
               {isOverLimit ? 'Over Budget' : 'Remaining'}
             </P>
             <P
-              size="lg"
-              class="font-semibold {isOverLimit
+              size="2xl"
+              class="font-bold {isOverLimit
                 ? 'text-red-600 dark:text-red-400'
                 : isNearLimit
                   ? 'text-yellow-600 dark:text-yellow-400'
@@ -159,7 +155,7 @@
 
       <!-- Purchases List -->
       <div>
-        <P size="lg" class="text-primary-900 dark:text-primary-200 mb-3 font-semibold">
+        <P size="xl" class="text-primary-900 dark:text-primary-200 mb-3 font-semibold">
           Purchases ({categoryData.items.length})
         </P>
 
@@ -171,29 +167,22 @@
               >
                 <div class="flex items-start justify-between">
                   <div class="min-w-0 flex-1">
-                    <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                    <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                       {item.name}
                     </P>
-                    <span class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    <span class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                       {isoStringToDate(item.purchaseDate)}
                     </span>
                   </div>
                   <div class="ml-3 flex items-center gap-2">
-                    <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                    <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                       {formatCurrency(item.amount)}
                     </P>
-                    <Button
-                      color="red"
-                      size="xs"
-                      pill
-                      outline
-                      class="delete-btn h-8 w-8 border-none p-0 shadow-sm transition-all hover:shadow-md"
+                    <DeleteIcon
                       onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
                       disabled={isDeleting}
-                      aria-label="Delete purchase"
-                    >
-                      <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
-                    </Button>
+                      ariaLabel="Delete purchase"
+                    />
                   </div>
                 </div>
               </div>
@@ -203,7 +192,7 @@
           <div
             class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
           >
-            <P size="sm" class="text-neutral-500 dark:text-neutral-400">
+            <P size="base" class="text-neutral-500 dark:text-neutral-400">
               No purchases recorded in this category yet
             </P>
           </div>
@@ -212,13 +201,13 @@
     </main>
   {:else}
     <main class="flex min-h-[60vh] flex-col items-center justify-center px-4">
-      <P size="lg" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
+      <P size="xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
         Category Not Found
       </P>
-      <p class="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+      <p class="mb-4 text-base text-neutral-600 dark:text-neutral-400">
         The category you're looking for doesn't exist or you don't have access to it.
       </p>
-      <Button color="primary" onclick={() => goto(Route.budget_new(params.uuid))}>
+      <Button color="primary" onclick={() => goto(Route.budget(params.uuid))}>
         Back to Budget
       </Button>
     </main>
@@ -226,11 +215,11 @@
 
   <!-- Delete Confirmation Modal -->
   <Modal title="Delete Purchase" bind:open={deleteModalOpen} autoclose>
-    <P size="lg">Are you sure you want to delete this purchase?</P>
+    <P size="xl">Are you sure you want to delete this purchase?</P>
     <P class="text-primary-900 dark:text-primary-200 font-semibold">
       {itemToDelete?.name}
     </P>
-    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
+    <P size="base" class="mt-2 text-neutral-600 dark:text-neutral-400">
       This action cannot be undone.
     </P>
 

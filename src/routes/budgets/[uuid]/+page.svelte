@@ -1,18 +1,28 @@
 <script lang="ts">
-  import { Button, P, Progressbar, Search, Modal } from 'flowbite-svelte';
+  import { Button, P, Progressbar, Search, Modal, Drawer, Input } from 'flowbite-svelte';
+  import { ArrowLeftOutline, AdjustmentsHorizontalOutline } from 'flowbite-svelte-icons';
   import {
-    ArrowLeftOutline,
-    AdjustmentsHorizontalOutline,
-    TrashBinOutline,
-  } from 'flowbite-svelte-icons';
-  import { getBudget, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
-  import { formatCurrency } from '$lib/utils/money';
+    getBudget,
+    deleteBudgetItem,
+    deleteCategory,
+    updateCategory,
+    updateBudgetItem,
+    getCategories,
+  } from '$lib/api/budgets.remote';
+  import { formatCurrency, centsToDollars } from '$lib/utils/money';
   import { getCategoryTotalSpent, getCategory } from '$lib/helpers/budgets';
   import { isoStringToDate } from '$lib/helpers/conversions';
+  import { Datepicker } from 'flowbite-svelte';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
   import type { BudgetItem } from '$lib/server/db/schema';
   import Select from '$lib/components/Select.svelte';
+  import MultiSelect from '$lib/components/MultiSelect.svelte';
+  import EditIcon from '$lib/components/EditIcon.svelte';
+  import DeleteIcon from '$lib/components/DeleteIcon.svelte';
+  import EditBudgetDrawer from '../components/EditBudgetDrawer.svelte';
+  import DeleteBudgetModal from '../components/DeleteBudgetModal.svelte';
+  import { onMount } from 'svelte';
 
   let { params } = $props();
 
@@ -21,7 +31,7 @@
   // Search and filter state
   let searchQuery = $state('');
   let categorySearchQuery = $state('');
-  let selectedCategoryFilter = $state<string>('all');
+  let selectedCategoryFilters = $state<string[]>([]);
   let showFilters = $state(false);
   let showCategoryFilters = $state(false);
 
@@ -30,10 +40,35 @@
   let itemToDelete = $state<BudgetItem | null>(null);
   let isDeleting = $state(false);
 
+  // Delete budget state
+  let deleteBudgetModalOpen = $state(false);
+
   // Delete state for categories
   let deleteCategoryModalOpen = $state(false);
   let categoryToDelete = $state<CategoryWithStatus | null>(null);
   let isDeletingCategory = $state(false);
+
+  // Edit budget state
+  let editDrawerOpen = $state(false);
+
+  // Edit category state
+  let editCategoryDrawerOpen = $state(false);
+  let categoryToEdit = $state<CategoryWithStatus | null>(null);
+  let categoryName = $state('');
+  let categoryLimit = $state('');
+  let isUpdatingCategory = $state(false);
+  let shouldRefreshCategory = $state(false);
+
+  // Edit purchase item state
+  let editItemDrawerOpen = $state(false);
+  let itemToEdit = $state<BudgetItem | null>(null);
+  let itemName = $state('');
+  let itemAmount = $state('');
+  let itemCategoryId = $state('');
+  let itemPurchaseDate = $state<Date>(new Date());
+  let isUpdatingItem = $state(false);
+  let shouldRefreshItem = $state(false);
+  let categoryOptions = $state<Array<{ value: string; name: string }>>([]);
 
   // Category sort state
   type CategorySortOption =
@@ -78,14 +113,10 @@
     return 'green';
   });
 
-  // Filter categories
+  // Filter categories - for multi-select (no "All" option needed)
   const categoryFilterOptions = $derived(() => {
     if (!budget) return [];
-    const options = [
-      { value: 'all', name: 'All Categories' },
-      ...budget.categories.map((cat) => ({ value: cat.uuid, name: cat.name })),
-    ];
-    return options;
+    return budget.categories.map((cat) => ({ value: cat.uuid, name: cat.name }));
   });
 
   // Filter and search purchases
@@ -94,13 +125,13 @@
 
     let items: BudgetItem[] = [...budget.budgetItems];
 
-    // Filter by category
-    if (selectedCategoryFilter !== 'all') {
-      items = items.filter((item) => item.categoryId === selectedCategoryFilter);
+    // Filter by category (multi-select)
+    if (selectedCategoryFilters.length > 0) {
+      items = items.filter((item) => selectedCategoryFilters.includes(item.categoryId));
     }
 
     // Search by name or category
-    if (searchQuery.trim()) {
+    if (searchQuery?.trim()) {
       const query = searchQuery.toLowerCase().trim();
       items = items.filter((item) => {
         const category = getCategory(item.categoryId, budget.categories);
@@ -172,7 +203,7 @@
     }
 
     // Search by category name
-    if (categorySearchQuery.trim()) {
+    if (categorySearchQuery?.trim()) {
       const query = categorySearchQuery.toLowerCase().trim();
       categories = categories.filter((cat) => cat.name.toLowerCase().includes(query));
     }
@@ -238,6 +269,151 @@
     deleteCategoryModalOpen = false;
     categoryToDelete = null;
   }
+
+  function handleEditClick() {
+    if (budget) {
+      editDrawerOpen = true;
+    }
+  }
+
+  function handleEditSuccess() {
+    getBudget(params.uuid).refresh();
+    editDrawerOpen = false;
+  }
+
+  function handleEditCancel() {
+    editDrawerOpen = false;
+  }
+
+  function handleDeleteBudgetClick() {
+    if (budget) {
+      deleteBudgetModalOpen = true;
+    }
+  }
+
+  function handleDeleteBudgetSuccess() {
+    // Navigate back to budgets list page after successful deletion
+    goto(Route.budgets);
+  }
+
+  function handleDeleteBudgetCancel() {
+    deleteBudgetModalOpen = false;
+  }
+
+  function handleEditCategoryClick(category: CategoryWithStatus, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    categoryToEdit = category;
+    categoryName = category.name;
+    categoryLimit = centsToDollars(category.limit).toString();
+    editCategoryDrawerOpen = true;
+  }
+
+  function handleEditCategoryCancel() {
+    editCategoryDrawerOpen = false;
+    categoryToEdit = null;
+    categoryName = '';
+    categoryLimit = '';
+  }
+
+  function handleEditCategorySuccess() {
+    shouldRefreshCategory = true;
+    editCategoryDrawerOpen = false;
+  }
+
+  // Watch for category drawer close and refresh when it closes
+  let prevEditCategoryDrawerOpen = $state(false);
+  $effect(() => {
+    if (prevEditCategoryDrawerOpen && !editCategoryDrawerOpen && shouldRefreshCategory) {
+      // Drawer just closed, use microtask to wait for DOM updates, then wait for animation
+      Promise.resolve().then(() => {
+        // Wait for CSS transition to complete (typically 300ms for drawer)
+        // Use requestAnimationFrame to ensure we're after the browser's paint
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Additional frame to ensure transition has started
+            requestAnimationFrame(async () => {
+              await getBudget(params.uuid).refresh();
+              categoryToEdit = null;
+              categoryName = '';
+              categoryLimit = '';
+              shouldRefreshCategory = false;
+            });
+          });
+        });
+      });
+    }
+    prevEditCategoryDrawerOpen = editCategoryDrawerOpen;
+  });
+
+  function handleEditItemClick(item: BudgetItem, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    itemToEdit = item;
+    itemName = item.name;
+    itemAmount = centsToDollars(item.amount).toString();
+    itemCategoryId = item.categoryId;
+    itemPurchaseDate = new Date(item.purchaseDate);
+
+    // Load categories for the budget
+    if (budget) {
+      getCategories(budget.uuid).then((cats) => {
+        categoryOptions = cats.map((cat) => ({
+          value: cat.uuid,
+          name: cat.name,
+        }));
+      });
+    }
+
+    editItemDrawerOpen = true;
+  }
+
+  function handleEditItemCancel() {
+    editItemDrawerOpen = false;
+    itemToEdit = null;
+    itemName = '';
+    itemAmount = '';
+    itemCategoryId = '';
+    itemPurchaseDate = new Date();
+    categoryOptions = [];
+  }
+
+  function handleEditItemSuccess() {
+    shouldRefreshItem = true;
+    editItemDrawerOpen = false;
+  }
+
+  // Watch for item drawer close and refresh when it closes
+  let prevEditItemDrawerOpen = $state(false);
+  $effect(() => {
+    if (prevEditItemDrawerOpen && !editItemDrawerOpen && shouldRefreshItem) {
+      // Drawer just closed, use microtask to wait for DOM updates, then wait for animation
+      Promise.resolve().then(() => {
+        // Wait for CSS transition to complete (typically 300ms for drawer)
+        // Use requestAnimationFrame to ensure we're after the browser's paint
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Additional frame to ensure transition has started
+            requestAnimationFrame(async () => {
+              await getBudget(params.uuid).refresh();
+              itemToEdit = null;
+              itemName = '';
+              itemAmount = '';
+              itemCategoryId = '';
+              itemPurchaseDate = new Date();
+              categoryOptions = [];
+              shouldRefreshItem = false;
+            });
+          });
+        });
+      });
+    }
+    prevEditItemDrawerOpen = editItemDrawerOpen;
+  });
+
+  onMount(() => {
+    getBudget(params.uuid).refresh();
+  });
 </script>
 
 <div class="min-h-screen bg-neutral-50 pb-6 dark:bg-neutral-900">
@@ -250,57 +426,66 @@
         size="sm"
         outline
         class="border-none p-2"
-        onclick={() => goto(Route.budgets_new)}
+        onclick={() => goto(Route.budgets)}
         aria-label="Back to budgets"
       >
         <ArrowLeftOutline class="text-primary-900 dark:text-primary-200 h-5 w-5" />
       </Button>
       <div class="min-w-0 flex-1">
         {#if budget}
-          <P size="xl" class="text-primary-900 dark:text-primary-200 truncate font-bold">
+          <P size="2xl" class="text-primary-900 dark:text-primary-200 truncate font-bold">
             {budget.name}
           </P>
         {:else}
-          <P size="xl" class="text-primary-900 dark:text-primary-200 font-bold">Budget Not Found</P>
+          <P size="2xl" class="text-primary-900 dark:text-primary-200 font-bold">Budget Not Found</P
+          >
         {/if}
       </div>
+      {#if budget}
+        <div class="flex items-center gap-2">
+          <EditIcon onclick={handleEditClick} disabled={false} ariaLabel="Edit budget" />
+          <DeleteIcon
+            onclick={handleDeleteBudgetClick}
+            disabled={false}
+            ariaLabel="Delete budget"
+          />
+        </div>
+      {/if}
     </div>
   </header>
 
   {#if budget}
     <main class="px-4 py-4">
-      <div
-        class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-      >
-        <div class="mb-4">
-          <div class="mb-2 flex items-center justify-between">
-            <P size="sm" class="text-neutral-600 dark:text-neutral-400">Budget Limit</P>
-            <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">
+      <div class="mb-8 border-b border-neutral-200 pb-8 dark:border-neutral-800">
+        <div class="mb-6">
+          <div class="mb-4 flex items-baseline justify-start gap-4">
+            <P size="base" class="text-neutral-600 dark:text-neutral-400">Budget Limit</P>
+            <P size="3xl" class="text-primary-900 dark:text-primary-200 font-bold">
               {formatCurrency(budgetLimit)}
             </P>
           </div>
           <Progressbar
             progress={details.progress}
             color={progressColor()}
-            class="mb-2"
+            class="h-3"
             style={details.isOverBudget ? 'background-color: rgb(239 68 68);' : ''}
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-4 pt-4">
+        <div class="full flex justify-between">
           <div>
-            <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">Spent</P>
-            <P size="lg" class="font-semibold text-green-600 dark:text-green-400">
+            <P size="base" class="mb-2 text-neutral-600 dark:text-neutral-400">Spent</P>
+            <P size="2xl" class="font-bold text-green-600 dark:text-green-400">
               {formatCurrency(budgetSpent)}
             </P>
           </div>
           <div>
-            <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">
+            <P size="base" class="mb-2 text-neutral-600 dark:text-neutral-400">
               {details.isOverBudget ? 'Over Budget' : 'Remaining'}
             </P>
             <P
-              size="lg"
-              class="font-semibold {details.isOverBudget
+              size="2xl"
+              class="font-bold {details.isOverBudget
                 ? 'text-red-600 dark:text-red-400'
                 : details.isWithin20Percent
                   ? 'text-yellow-600 dark:text-yellow-400'
@@ -318,7 +503,7 @@
       {#if budget.categories.length > 0}
         <div class="mb-6">
           <div class="mb-3 flex items-center justify-between gap-2">
-            <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">Categories</P>
+            <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Categories</P>
             <Button
               color="alternative"
               size="sm"
@@ -390,9 +575,9 @@
                   role="button"
                   tabindex="0"
                   onclick={(e) => {
-                    // Don't navigate if clicking on the delete button
+                    // Don't navigate if clicking on the delete or edit button
                     const target = e.target as HTMLElement;
-                    if (!target.closest('.delete-btn')) {
+                    if (!target.closest('.delete-btn') && !target.closest('.edit-btn')) {
                       goto(Route.category_purchases(params.uuid, category.uuid));
                     }
                   }}
@@ -404,25 +589,23 @@
                   }}
                 >
                   <div class="mb-2 flex items-center justify-between">
-                    <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                    <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                       {category.name}
                     </P>
                     <div class="flex items-center gap-2">
-                      <P size="xs" class="text-neutral-500 dark:text-neutral-400">
+                      <P size="base" class="text-neutral-500 dark:text-neutral-400">
                         {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
                       </P>
-                      <Button
-                        color="red"
-                        size="xs"
-                        pill
-                        outline
-                        class="delete-btn h-8 w-8 border-none p-0 shadow-sm transition-all hover:shadow-md"
+                      <EditIcon
+                        onclick={(e: MouseEvent) => handleEditCategoryClick(category, e)}
+                        disabled={isUpdatingCategory}
+                        ariaLabel="Edit category"
+                      />
+                      <DeleteIcon
                         onclick={(e: MouseEvent) => handleDeleteCategoryClick(category, e)}
                         disabled={isDeletingCategory}
-                        aria-label="Delete category"
-                      >
-                        <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
-                      </Button>
+                        ariaLabel="Delete category"
+                      />
                     </div>
                   </div>
                   <Progressbar
@@ -434,13 +617,13 @@
                   <div class="flex items-center justify-between pt-2">
                     <div class="flex items-center gap-1.5">
                       <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
-                      <span class="text-xs text-neutral-600 dark:text-neutral-400">
+                      <span class="text-base text-neutral-600 dark:text-neutral-400">
                         {categoryItemCount}
                         {categoryItemCount === 1 ? 'item' : 'items'}
                       </span>
                     </div>
                     <P
-                      size="xs"
+                      size="sm"
                       class="text-right {isOverLimit
                         ? 'text-red-600 dark:text-red-400'
                         : isNearLimit
@@ -460,7 +643,7 @@
               <div
                 class="rounded-lg border border-neutral-200 bg-white p-4 text-center dark:border-neutral-700 dark:bg-neutral-800"
               >
-                <P size="sm" class="text-neutral-500 dark:text-neutral-400">
+                <P size="base" class="text-neutral-500 dark:text-neutral-400">
                   No categories match the selected filter
                 </P>
               </div>
@@ -470,10 +653,10 @@
       {/if}
       <div>
         <div class="mb-3 flex items-center justify-between gap-2">
-          <P size="lg" class="text-primary-900 dark:text-primary-200 font-semibold">
+          <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">
             Purchases
             {#if filteredPurchases().length !== budget.budgetItems.length}
-              <span class="ml-2 text-sm font-normal text-neutral-500 dark:text-neutral-400">
+              <span class="ml-2 text-base font-normal text-neutral-500 dark:text-neutral-400">
                 ({filteredPurchases().length} of {budget.budgetItems.length})
               </span>
             {/if}
@@ -499,10 +682,10 @@
               bind:value={searchQuery}
               class="w-full"
             />
-            <Select
-              size="sm"
+            <MultiSelect
               items={categoryFilterOptions()}
-              bind:value={selectedCategoryFilter}
+              bind:value={selectedCategoryFilters}
+              placeholder="Select categories..."
               class="w-full"
             />
           </div>
@@ -518,38 +701,36 @@
                 >
                   <div class="flex items-start justify-between">
                     <div class="min-w-0 flex-1">
-                      <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                      <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                         {item.name}
                       </P>
                       <div class="mt-1 flex items-center gap-2">
                         {#if category}
                           <span
-                            class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 rounded-full px-2 py-0.5 text-xs"
+                            class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 rounded-full px-2 py-0.5 text-base"
                           >
                             {category.name}
                           </span>
                         {/if}
-                        <span class="text-xs text-neutral-500 dark:text-neutral-400">
+                        <span class="text-base text-neutral-500 dark:text-neutral-400">
                           {isoStringToDate(item.purchaseDate)}
                         </span>
                       </div>
                     </div>
                     <div class="ml-3 flex items-center gap-2">
-                      <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                      <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                         {formatCurrency(item.amount)}
                       </P>
-                      <Button
-                        color="red"
-                        size="xs"
-                        pill
-                        outline
-                        class="delete-btn h-8 w-8 border-none p-0 shadow-sm transition-all hover:shadow-md"
+                      <EditIcon
+                        onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
+                        disabled={isUpdatingItem}
+                        ariaLabel="Edit purchase"
+                      />
+                      <DeleteIcon
                         onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
                         disabled={isDeleting}
-                        aria-label="Delete purchase"
-                      >
-                        <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
-                      </Button>
+                        ariaLabel="Delete purchase"
+                      />
                     </div>
                   </div>
                 </div>
@@ -559,7 +740,7 @@
             <div
               class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
             >
-              <P size="sm" class="text-neutral-500 dark:text-neutral-400">
+              <P size="base" class="text-neutral-500 dark:text-neutral-400">
                 No purchases match your search or filter criteria
               </P>
             </div>
@@ -568,7 +749,8 @@
           <div
             class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
           >
-            <P size="sm" class="text-neutral-500 dark:text-neutral-400">No purchases recorded yet</P
+            <P size="base" class="text-neutral-500 dark:text-neutral-400"
+              >No purchases recorded yet</P
             >
           </div>
         {/if}
@@ -576,22 +758,22 @@
     </main>
   {:else}
     <main class="flex min-h-[60vh] flex-col items-center justify-center px-4">
-      <P size="lg" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
+      <P size="xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
         Budget Not Found
       </P>
-      <p class="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+      <p class="mb-4 text-base text-neutral-600 dark:text-neutral-400">
         The budget you're looking for doesn't exist or you don't have access to it.
       </p>
-      <Button color="primary" onclick={() => goto(Route.budgets_new)}>Back to Budgets</Button>
+      <Button color="primary" onclick={() => goto(Route.budgets)}>Back to Budgets</Button>
     </main>
   {/if}
 
   <Modal title="Delete Purchase" bind:open={deleteModalOpen} autoclose>
-    <P size="lg">Are you sure you want to delete this purchase?</P>
+    <P size="xl">Are you sure you want to delete this purchase?</P>
     <P class="text-primary-900 dark:text-primary-200 font-semibold">
       {itemToDelete?.name}
     </P>
-    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
+    <P size="base" class="mt-2 text-neutral-600 dark:text-neutral-400">
       This action cannot be undone.
     </P>
 
@@ -625,7 +807,7 @@
   </Modal>
 
   <Modal title="Delete Category" bind:open={deleteCategoryModalOpen} autoclose>
-    <P size="lg">Are you sure you want to delete this category?</P>
+    <P size="xl">Are you sure you want to delete this category?</P>
     <P class="text-primary-900 dark:text-primary-200 font-semibold">
       {categoryToDelete?.name}
     </P>
@@ -635,14 +817,14 @@
         (item) => item.categoryId === categoryUuid,
       ).length}
       {#if itemCount > 0}
-        <P size="sm" class="mt-2 text-yellow-600 dark:text-yellow-400">
+        <P size="base" class="mt-2 text-yellow-600 dark:text-yellow-400">
           Warning: This category has {itemCount}
           {itemCount === 1 ? 'purchase' : 'purchases'}. All purchases in this category will also be
           deleted.
         </P>
       {/if}
     {/if}
-    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
+    <P size="base" class="mt-2 text-neutral-600 dark:text-neutral-400">
       This action cannot be undone.
     </P>
 
@@ -680,4 +862,244 @@
       </div>
     {/snippet}
   </Modal>
+
+  {#if budget}
+    <EditBudgetDrawer
+      bind:open={editDrawerOpen}
+      budgetId={budget.uuid}
+      initialName={budget.name}
+      onSuccess={handleEditSuccess}
+      onCancel={handleEditCancel}
+    />
+    <DeleteBudgetModal
+      bind:open={deleteBudgetModalOpen}
+      budgetId={budget.uuid}
+      budgetName={budget.name}
+      onSuccess={handleDeleteBudgetSuccess}
+      onCancel={handleDeleteBudgetCancel}
+    />
+  {/if}
+
+  <Drawer bind:open={editCategoryDrawerOpen} placement="bottom" class="z-50">
+    <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
+      >
+        <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Edit Category</P>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto px-4 py-4">
+        <form
+          {...updateCategory.enhance(async ({ form, submit }) => {
+            isUpdatingCategory = true;
+            try {
+              await submit();
+
+              if (updateCategory.result?.success === true) {
+                form.reset();
+                await handleEditCategorySuccess();
+              }
+            } catch (error) {
+              console.error('Error updating category:', error);
+            } finally {
+              isUpdatingCategory = false;
+            }
+          })}
+          class="space-y-4"
+        >
+          <input type="hidden" name="categoryId" value={categoryToEdit?.uuid || ''} />
+          <div>
+            <label
+              for="category-name"
+              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
+            >
+              Category Name
+            </label>
+            <Input
+              id="category-name"
+              name="name"
+              bind:value={categoryName}
+              placeholder="Enter category name"
+              required
+              disabled={isUpdatingCategory}
+              class="w-full"
+            />
+          </div>
+          <div>
+            <label
+              for="category-limit"
+              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
+            >
+              Monthly Limit ($)
+            </label>
+            <Input
+              id="category-limit"
+              name="limit"
+              type="number"
+              step="0.01"
+              min="0"
+              bind:value={categoryLimit}
+              placeholder="500.00"
+              required
+              disabled={isUpdatingCategory}
+              class="w-full"
+            />
+          </div>
+
+          <div class="flex w-full justify-between gap-4 pt-4">
+            <Button
+              onclick={handleEditCategoryCancel}
+              color="alternative"
+              disabled={isUpdatingCategory}
+              class="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              color="primary"
+              disabled={isUpdatingCategory ||
+                !categoryName.trim() ||
+                !String(categoryLimit || '').trim()}
+              class="flex-1"
+            >
+              {isUpdatingCategory ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </Drawer>
+
+  <Drawer bind:open={editItemDrawerOpen} placement="bottom" class="z-50">
+    <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
+      >
+        <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Edit Purchase</P>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto px-4 py-4">
+        <form
+          {...updateBudgetItem.enhance(async ({ form, submit }) => {
+            isUpdatingItem = true;
+            try {
+              await submit();
+
+              if (updateBudgetItem.result?.success === true) {
+                form.reset();
+                await handleEditItemSuccess();
+              }
+            } catch (error) {
+              console.error('Error updating purchase:', error);
+            } finally {
+              isUpdatingItem = false;
+            }
+          })}
+          class="space-y-4"
+        >
+          <input type="hidden" name="budgetItemId" value={itemToEdit?.uuid || ''} />
+          <input type="hidden" name="purchaseDate" value={itemPurchaseDate.toISOString()} />
+          <div>
+            <label
+              for="item-name"
+              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
+            >
+              Purchase Name
+            </label>
+            <Input
+              id="item-name"
+              name="name"
+              bind:value={itemName}
+              placeholder="e.g., Milk"
+              required
+              disabled={isUpdatingItem}
+              class="w-full"
+            />
+          </div>
+          <div>
+            <label
+              for="item-date"
+              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
+            >
+              Date
+            </label>
+            <Datepicker
+              id="item-date"
+              inputClass="text-xl h-12"
+              color="primary"
+              bind:value={itemPurchaseDate}
+              autohide
+              disabled={isUpdatingItem}
+            />
+          </div>
+          <div>
+            <label
+              for="item-category"
+              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
+            >
+              Category
+            </label>
+            <Select
+              id="item-category"
+              name="categoryId"
+              size="lg"
+              classes={{ select: 'h-12 truncate text-xl' }}
+              items={categoryOptions}
+              bind:value={itemCategoryId}
+              disabled={categoryOptions.length === 0 || isUpdatingItem}
+              placeholder="Select a category"
+              required
+            />
+          </div>
+          <div>
+            <label
+              for="item-amount"
+              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
+            >
+              Amount ($)
+            </label>
+            <Input
+              id="item-amount"
+              name="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              bind:value={itemAmount}
+              placeholder="5.00"
+              required
+              disabled={isUpdatingItem}
+              class="w-full"
+            />
+          </div>
+
+          <div class="flex w-full justify-between gap-4 pt-4">
+            <Button
+              onclick={handleEditItemCancel}
+              color="alternative"
+              disabled={isUpdatingItem}
+              class="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              color="primary"
+              disabled={isUpdatingItem ||
+                !itemName.trim() ||
+                !String(itemAmount || '').trim() ||
+                !itemCategoryId}
+              class="flex-1"
+            >
+              {isUpdatingItem ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </Drawer>
 </div>

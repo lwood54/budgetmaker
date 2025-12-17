@@ -1,11 +1,9 @@
 export const Route = {
   about: '/about',
   budgets: '/budgets',
-  budgets_new: '/budgets-new',
   budget: (budgetUUID: string) => `/budgets/${budgetUUID}`,
-  budget_new: (budgetUUID: string) => `/budgets-new/${budgetUUID}`,
   category_purchases: (budgetUUID: string, categoryUUID: string) =>
-    `/budgets-new/${budgetUUID}/categories/${categoryUUID}`,
+    `/budgets/${budgetUUID}/categories/${categoryUUID}`,
   categories: (budgetUUID: string) => `/budgets/${budgetUUID}/categories`,
   calculators: '/calculators',
   contact: '/contact',

@@ -1,18 +1,26 @@
 <script lang="ts">
-  import { Button, P, Modal, Progressbar } from 'flowbite-svelte';
+  import { Button, P, Progressbar } from 'flowbite-svelte';
   import Select from '$lib/components/Select.svelte';
-  import { PlusOutline, TrashBinOutline } from 'flowbite-svelte-icons';
-  import { getBudgets, deleteBudget } from '$lib/api/budgets.remote';
+  import DeleteIcon from '$lib/components/DeleteIcon.svelte';
+  import EditIcon from '$lib/components/EditIcon.svelte';
+  import EditBudgetDrawer from './components/EditBudgetDrawer.svelte';
+  import DeleteBudgetModal from './components/DeleteBudgetModal.svelte';
+  import { PlusOutline } from 'flowbite-svelte-icons';
+  import { getBudgets } from '$lib/api/budgets.remote';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { formatCurrency } from '$lib/utils/money';
+  import { onMount } from 'svelte';
 
   const budgets = $derived(await getBudgets());
 
   let deleteModalOpen = $state(false);
   let budgetToDelete = $state<BudgetWithRelations | null>(null);
-  let isDeleting = $state(false);
+
+  // Edit budget state
+  let editDrawerOpen = $state(false);
+  let budgetToEdit = $state<BudgetWithRelations | null>(null);
 
   type SortOption =
     | 'created-date'
@@ -25,7 +33,7 @@
   let sortBy = $state<SortOption>('created-date');
 
   function handleBudgetClick(budgetId: string) {
-    goto(Route.budget_new(budgetId));
+    goto(Route.budget(budgetId));
   }
 
   function handleDeleteClick(budget: BudgetWithRelations, e: MouseEvent) {
@@ -35,16 +43,40 @@
     deleteModalOpen = true;
   }
 
+  function handleEditClick(budget: BudgetWithRelations, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    budgetToEdit = budget;
+    editDrawerOpen = true;
+  }
+
+  function handleEditSuccess() {
+    getBudgets().refresh();
+    editDrawerOpen = false;
+    budgetToEdit = null;
+  }
+
+  function handleEditCancel() {
+    editDrawerOpen = false;
+    budgetToEdit = null;
+  }
+
   function handleDeleteCancel() {
     deleteModalOpen = false;
     budgetToDelete = null;
   }
 
-  async function handleDeleteSuccess() {
-    await getBudgets().refresh();
+  function handleDeleteSuccess() {
+    getBudgets().refresh();
     deleteModalOpen = false;
     budgetToDelete = null;
   }
+
+  onMount(() => {
+    console.log('Budgets page mounted');
+    // Refresh budgets data when page is mounted to ensure fresh data
+    getBudgets().refresh();
+  });
 
   // Calculate budget total amount (sum of category limits)
   function getBudgetAmount(budget: BudgetWithRelations): number {
@@ -156,7 +188,7 @@
   >
     <div class="px-4 py-4">
       <div class="mb-3 flex items-center justify-between">
-        <P size="2xl" class="text-primary-900 dark:text-primary-200 font-bold">My Budgets</P>
+        <P size="3xl" class="text-primary-900 dark:text-primary-200 font-bold">My Budgets</P>
         {#if budgets.length > 0}
           <Select
             size="sm"
@@ -173,7 +205,7 @@
           />
         {/if}
       </div>
-      <p class="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+      <p class="mt-1 text-base text-neutral-600 dark:text-neutral-400">
         {budgets.length === 0
           ? 'No budgets yet'
           : `${budgets.length} ${budgets.length === 1 ? 'budget' : 'budgets'}`}
@@ -187,10 +219,10 @@
         <div class="bg-primary-100 dark:bg-primary-900/30 mb-6 rounded-full p-6">
           <PlusOutline class="text-primary-600 dark:text-primary-400 h-12 w-12" />
         </div>
-        <P size="xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
+        <P size="2xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
           Create Your First Budget
         </P>
-        <p class="mb-6 max-w-xs text-sm text-neutral-600 dark:text-neutral-400">
+        <p class="mb-6 max-w-xs text-base text-neutral-600 dark:text-neutral-400">
           Start tracking your expenses and managing your finances with a new budget.
         </p>
         <Button color="primary" size="lg" class="w-full max-w-xs">
@@ -199,7 +231,7 @@
         </Button>
       </div>
     {:else}
-      <div class="space-y-3">
+      <div class="cursor-pointer space-y-3" data-testid="budgets-list">
         {#each sortedBudgets() as budget (budget.uuid)}
           {@const budgetAmount = getBudgetAmount(budget)}
           {@const budgetSpent = getBudgetSpent(budget)}
@@ -212,7 +244,13 @@
             class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
             role="button"
             tabindex="0"
-            onclick={() => handleBudgetClick(budget.uuid)}
+            onclick={(e) => {
+              // Don't navigate if clicking on the delete or edit button
+              const target = e.target as HTMLElement;
+              if (!target.closest('.delete-btn') && !target.closest('.edit-btn')) {
+                handleBudgetClick(budget.uuid);
+              }
+            }}
             onkeydown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -222,10 +260,10 @@
           >
             <div class="mb-3 flex items-start justify-between">
               <div class="min-w-0 flex-1">
-                <P size="lg" class="text-primary-900 dark:text-primary-200 truncate font-semibold">
+                <P size="xl" class="text-primary-900 dark:text-primary-200 truncate font-semibold">
                   {budget.name}
                 </P>
-                <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                <p class="mt-1 text-base text-neutral-500 dark:text-neutral-400">
                   Created {new Date(budget.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -233,34 +271,34 @@
                   })}
                 </p>
               </div>
-              <Button
-                color="red"
-                size="xs"
-                pill
-                outline
-                class="delete-btn ml-2 h-8 w-8 flex-shrink-0 border-none p-0 shadow-sm transition-all hover:shadow-md"
-                onclick={(e: MouseEvent) => handleDeleteClick(budget, e)}
-                disabled={isDeleting}
-                aria-label="Delete budget"
-              >
-                <TrashBinOutline class="h-4 w-4 text-red-600 dark:text-red-400" />
-              </Button>
+              <div class="ml-2 flex flex-shrink-0 items-center gap-2">
+                <EditIcon
+                  onclick={(e: MouseEvent) => handleEditClick(budget, e)}
+                  disabled={false}
+                  ariaLabel="Edit budget"
+                />
+                <DeleteIcon
+                  onclick={(e: MouseEvent) => handleDeleteClick(budget, e)}
+                  disabled={false}
+                  ariaLabel="Delete budget"
+                />
+              </div>
             </div>
             <div
               class="mb-3 grid grid-cols-2 gap-3 border-t border-neutral-200 pt-3 dark:border-neutral-700"
             >
               <div>
-                <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">Budget Limit</P>
-                <P size="sm" class="text-primary-900 dark:text-primary-200 font-semibold">
+                <P size="sm" class="mb-1 text-neutral-500 dark:text-neutral-400">Budget Limit</P>
+                <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                   {formatCurrency(budgetAmount)}
                 </P>
               </div>
               <div>
-                <P size="xs" class="mb-1 text-neutral-500 dark:text-neutral-400">
+                <P size="sm" class="mb-1 text-neutral-500 dark:text-neutral-400">
                   {isOverBudget ? 'Over Budget' : 'Remaining'}
                 </P>
                 <P
-                  size="sm"
+                  size="base"
                   class={`font-semibold ${getRemainingColorClass(isOverBudget, isWithin20Percent)}`}
                 >
                   {#if isOverBudget}
@@ -284,14 +322,14 @@
             <div class="flex items-center gap-4">
               <div class="flex items-center gap-1.5">
                 <div class="bg-secondary-500 dark:bg-secondary-400 h-2 w-2 rounded-full"></div>
-                <span class="text-sm text-neutral-600 dark:text-neutral-400">
+                <span class="text-base text-neutral-600 dark:text-neutral-400">
                   {budget.categories.length}
                   {budget.categories.length === 1 ? 'category' : 'categories'}
                 </span>
               </div>
               <div class="flex items-center gap-1.5">
                 <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
-                <span class="text-sm text-neutral-600 dark:text-neutral-400">
+                <span class="text-base text-neutral-600 dark:text-neutral-400">
                   {budget.budgetItems.length}
                   {budget.budgetItems.length === 1 ? 'item' : 'items'}
                 </span>
@@ -303,41 +341,23 @@
     {/if}
   </main>
 
-  <Modal title="Delete Budget" bind:open={deleteModalOpen} autoclose>
-    <P size="lg">Are you sure you want to delete this budget?</P>
-    <P class="text-primary-900 dark:text-primary-200 font-semibold">
-      {budgetToDelete?.name}
-    </P>
-    <P size="sm" class="mt-2 text-neutral-600 dark:text-neutral-400">
-      This action cannot be undone. All categories and purchases in this budget will be deleted.
-    </P>
+  {#if budgetToDelete}
+    <DeleteBudgetModal
+      bind:open={deleteModalOpen}
+      budgetId={budgetToDelete.uuid}
+      budgetName={budgetToDelete.name}
+      onSuccess={handleDeleteSuccess}
+      onCancel={handleDeleteCancel}
+    />
+  {/if}
 
-    {#snippet footer()}
-      <div class="flex w-full justify-between gap-4">
-        <Button onclick={handleDeleteCancel} color="alternative" disabled={isDeleting}>
-          Cancel
-        </Button>
-        <form
-          {...deleteBudget.enhance(async ({ form, submit }) => {
-            isDeleting = true;
-            try {
-              await submit();
-
-              if (deleteBudget.result?.success === true) {
-                form.reset();
-                await handleDeleteSuccess();
-              }
-            } catch (error) {
-              console.error('Error deleting budget:', error);
-            } finally {
-              isDeleting = false;
-            }
-          })}
-        >
-          <input type="hidden" name="budgetId" value={budgetToDelete?.uuid || ''} />
-          <Button color="red" type="submit" disabled={isDeleting || !budgetToDelete}>Delete</Button>
-        </form>
-      </div>
-    {/snippet}
-  </Modal>
+  {#if budgetToEdit}
+    <EditBudgetDrawer
+      bind:open={editDrawerOpen}
+      budgetId={budgetToEdit.uuid}
+      initialName={budgetToEdit.name}
+      onSuccess={handleEditSuccess}
+      onCancel={handleEditCancel}
+    />
+  {/if}
 </div>
