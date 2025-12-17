@@ -85,17 +85,10 @@ export const addBudget = form(
     name: z.string().min(1, 'Budget name is required'),
   }),
   async ({ name }, issue) => {
-    console.log('[addBudget remote] Form submission received, name:', name);
     const event = getRequestEvent();
-    console.log('[addBudget remote] Request method:', event.request.method);
-    console.log('[addBudget remote] Request URL:', event.url.toString());
-
     if (!event.locals.user?.userId) {
-      console.log('[addBudget remote] Unauthorized - no userId');
       invalid(issue.name('Unauthorized'));
     }
-
-    console.log('[addBudget remote] Inserting budget into database');
     const budgetUuid = crypto.randomUUID();
     await event.locals.db.insert(budgets).values({
       uuid: budgetUuid,
@@ -104,8 +97,6 @@ export const addBudget = form(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-
-    console.log('[addBudget remote] Budget created successfully, returning success');
     getBudgets().refresh();
     return {
       success: true,

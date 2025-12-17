@@ -99,8 +99,6 @@ export const actions: Actions = {
         locals.db,
       );
 
-      console.log(`New user created: ${email} (${userId})`);
-
       try {
         await sendVerificationEmail(
           email.toLowerCase(),

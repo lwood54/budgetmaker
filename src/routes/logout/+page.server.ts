@@ -6,7 +6,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (locals.user?.sessionId) {
     try {
       await deleteSession(locals.user.sessionId, locals.db);
-      console.log(`Session ${locals.user.sessionId} deleted for user ${locals.user.email}`);
     } catch (error) {
       console.error('Error deleting session:', error);
     }
@@ -22,7 +21,6 @@ export const actions: Actions = {
     if (locals.user?.sessionId) {
       try {
         await deleteSession(locals.user.sessionId, locals.db);
-        console.log(`User ${locals.user.email} logged out`);
       } catch (error) {
         console.error('Error deleting session during logout:', error);
       }

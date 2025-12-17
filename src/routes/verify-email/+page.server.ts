@@ -11,9 +11,9 @@ export const load: PageServerLoad = async ({ url, locals, cookies }) => {
   const email = url.searchParams.get('email');
   const error = url.searchParams.get('error');
 
-  // If user is already logged in, redirect to dashboard
+  // If user is already logged in, redirect to home
   if (locals.user) {
-    throw redirect(302, Route.dashboard);
+    throw redirect(302, Route.home);
   }
 
   // If token is provided, attempt verification
@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ url, locals, cookies }) => {
             autoLoginFailed: true,
           };
         }
-        throw redirect(302, '/dashboard?welcome=true&verified=true');
+        throw redirect(302, `${Route.home}?welcome=true&verified=true`);
       }
     }
 

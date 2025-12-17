@@ -92,8 +92,6 @@ const authenticate: Handle = async ({ event, resolve }) => {
       };
 
       if (shouldRefreshToken(tokenPayload.exp)) {
-        console.log('Refreshing token for user:', tokenPayload.email);
-
         const refreshResult = await refreshSession(sessionId, event.locals.db);
 
         if (refreshResult) {

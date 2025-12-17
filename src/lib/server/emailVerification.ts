@@ -38,8 +38,6 @@ export async function sendVerificationEmail(
       subject: 'Verify your BudgetMaker account',
       html: generateVerificationEmailHtml(verificationUrl, firstName),
     });
-
-    console.log(`Verification email sent to ${email}`);
   } catch (error) {
     console.error('Failed to send verification email:', error);
     throw new Error('Failed to send verification email');

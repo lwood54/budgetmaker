@@ -115,6 +115,15 @@
   input[type='search']::-webkit-search-cancel-button {
     display: none;
   }
+
+  /* Prevent iOS auto-zoom on input focus - requires minimum 16px font size */
+  /* Set default font size to 16px for all form inputs to prevent iOS Safari auto-zoom */
+  /* Tailwind utility classes (text-xl, text-lg, etc.) will override this if specified */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 body {

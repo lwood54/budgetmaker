@@ -73,8 +73,6 @@
   }
 
   onMount(() => {
-    console.log('Budgets page mounted');
-    // Refresh budgets data when page is mounted to ensure fresh data
     getBudgets().refresh();
   });
 

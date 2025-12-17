@@ -2,7 +2,6 @@
   import { Button } from 'flowbite-svelte';
   import { PlusOutline } from 'flowbite-svelte-icons';
   import AddItemDrawer from './components/AddItemDrawer.svelte';
-  import { onMount } from 'svelte';
 
   let { children } = $props();
 
@@ -11,10 +10,6 @@
   function handleCreateItem() {
     drawerOpen = true;
   }
-
-  onMount(() => {
-    console.log('Budgets layout mounted');
-  });
 </script>
 
 <div class="pb-12">

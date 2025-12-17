@@ -33,7 +33,7 @@
   }
 </script>
 
-<Drawer bind:open placement="bottom" class="z-50">
+<Drawer bind:open placement="top" class="z-50">
   <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
     <!-- Header -->
     <div
@@ -77,7 +77,7 @@
             placeholder="Enter budget name"
             required
             disabled={isUpdatingBudget}
-            class="w-full"
+            class="w-full text-xl"
           />
         </div>
 

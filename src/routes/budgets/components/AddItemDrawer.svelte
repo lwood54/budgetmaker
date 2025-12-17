@@ -130,7 +130,7 @@
 
 <!-- <Drawer bind:open placement="right" class="z-50">
   <div class="flex max-h-[100vh] w-full max-w-md flex-col bg-white dark:bg-neutral-800"> -->
-<Drawer bind:open placement="bottom" class="z-50">
+<Drawer bind:open placement="top" class="z-50">
   <div class="flex max-h-[90vh] flex-col bg-white dark:bg-neutral-800">
     <!-- Header -->
     <div

@@ -880,7 +880,7 @@
     />
   {/if}
 
-  <Drawer bind:open={editCategoryDrawerOpen} placement="bottom" class="z-50">
+  <Drawer bind:open={editCategoryDrawerOpen} placement="top" class="z-50">
     <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
       <!-- Header -->
       <div
@@ -973,7 +973,7 @@
     </div>
   </Drawer>
 
-  <Drawer bind:open={editItemDrawerOpen} placement="bottom" class="z-50">
+  <Drawer bind:open={editItemDrawerOpen} placement="top" class="z-50">
     <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
       <!-- Header -->
       <div

@@ -40,8 +40,6 @@ export async function sendPasswordResetEmail(
       subject: 'Reset your BudgetMaker password',
       html: generatePasswordResetEmailHtml(resetUrl, firstName),
     });
-
-    console.log(`Password reset email sent to ${email}`);
   } catch (error) {
     console.error('Failed to send password reset email:', error);
     throw new Error('Failed to send password reset email');

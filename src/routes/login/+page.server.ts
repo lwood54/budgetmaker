@@ -5,7 +5,7 @@ import { Route } from '$lib/constants/routes';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (locals.user) {
-    throw redirect(302, Route.dashboard);
+    throw redirect(302, Route.home);
   }
 
   const message = url.searchParams.get('message');
@@ -19,7 +19,7 @@ export const actions: Actions = {
     const formData = await request.formData();
     const email = formData.get('email')?.toString();
     const password = formData.get('password')?.toString();
-    const redirectTo = url.searchParams.get('redirectTo') || Route.dashboard;
+    const redirectTo = url.searchParams.get('redirectTo') || Route.home;
 
     // Basic validation
     if (!email || !password) {
@@ -77,8 +77,6 @@ export const actions: Actions = {
 
       // Set authentication cookies
       setAuthCookies(cookies, accessToken, sessionId, expiresAt);
-
-      console.log(`User ${user.email} logged in successfully`);
     } catch (error) {
       console.error('Login error:', error);
 

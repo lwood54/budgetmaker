@@ -11,7 +11,7 @@
 
 <div class="flex h-[calc(100vh-6rem)] items-center justify-center px-4">
   <div class="text-center">
-    <P size="6xl" class="text-primary-900 dark:text-primary-200 text-center font-bold">
+    <P size="4xl" class="text-primary-900 dark:text-primary-200 text-center font-bold">
       BudgetmakerIO
     </P>
     <P size="xl" class="text-primary-800 dark:text-primary-400 text-center font-semibold">
