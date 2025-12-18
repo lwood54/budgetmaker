@@ -118,11 +118,33 @@
 
   /* Prevent iOS auto-zoom on input focus - requires minimum 16px font size */
   /* Set default font size to 16px for all form inputs to prevent iOS Safari auto-zoom */
-  /* Tailwind utility classes (text-xl, text-lg, etc.) will override this if specified */
+  /* Using !important to override Flowbite component defaults */
   input,
   select,
   textarea {
-    font-size: 16px;
+    font-size: 16px !important;
+  }
+
+  /* Ensure inputs in drawers/modals have larger font size for better mobile UX */
+  /* Target both direct class and nested inputs */
+  input.text-xl,
+  select.text-xl,
+  textarea.text-xl,
+  [class*='text-xl'] input,
+  [class*='text-xl'] select,
+  [class*='text-xl'] textarea {
+    font-size: 1.25rem !important; /* 20px */
+  }
+
+  /* Specifically target inputs inside drawers to ensure they're large enough */
+  /* Flowbite drawers use specific classes, so we target common patterns */
+  [id*='drawer'] input,
+  [id*='drawer'] select,
+  [id*='drawer'] textarea,
+  [role='dialog'] input,
+  [role='dialog'] select,
+  [role='dialog'] textarea {
+    font-size: 16px !important;
   }
 }
 

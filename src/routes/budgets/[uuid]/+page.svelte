@@ -924,7 +924,7 @@
               placeholder="Enter category name"
               required
               disabled={isUpdatingCategory}
-              class="w-full"
+              class="w-full text-xl"
             />
           </div>
           <div>
@@ -944,7 +944,7 @@
               placeholder="500.00"
               required
               disabled={isUpdatingCategory}
-              class="w-full"
+              class="w-full text-xl"
             />
           </div>
 
@@ -1018,7 +1018,7 @@
               placeholder="e.g., Milk"
               required
               disabled={isUpdatingItem}
-              class="w-full"
+              class="w-full text-xl"
             />
           </div>
           <div>
@@ -1073,7 +1073,7 @@
               placeholder="5.00"
               required
               disabled={isUpdatingItem}
-              class="w-full"
+              class="w-full text-xl"
             />
           </div>
 
