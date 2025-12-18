@@ -1,27 +1,20 @@
 <script lang="ts">
-  import { Button, P, Progressbar, Search, Modal, Drawer, Input } from 'flowbite-svelte';
+  import { Button, P, Progressbar, Search, Modal } from 'flowbite-svelte';
   import { ArrowLeftOutline, AdjustmentsHorizontalOutline } from 'flowbite-svelte-icons';
-  import {
-    getBudget,
-    deleteBudgetItem,
-    deleteCategory,
-    updateCategory,
-    updateBudgetItem,
-    getCategories,
-  } from '$lib/api/budgets.remote';
-  import { formatCurrency, centsToDollars } from '$lib/utils/money';
+  import { getBudget, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
+  import { formatCurrency } from '$lib/utils/money';
   import { getCategoryTotalSpent, getCategory } from '$lib/helpers/budgets';
   import { isoStringToDate } from '$lib/helpers/conversions';
-  import { Datepicker } from 'flowbite-svelte';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
+  import { page } from '$app/state';
   import type { BudgetItem } from '$lib/server/db/schema';
   import Select from '$lib/components/Select.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
-  import EditBudgetDrawer from '../components/EditBudgetDrawer.svelte';
   import DeleteBudgetModal from '../components/DeleteBudgetModal.svelte';
+  import { PlusOutline } from 'flowbite-svelte-icons';
   import { onMount } from 'svelte';
 
   let { params } = $props();
@@ -48,27 +41,13 @@
   let categoryToDelete = $state<CategoryWithStatus | null>(null);
   let isDeletingCategory = $state(false);
 
-  // Edit budget state
-  let editDrawerOpen = $state(false);
+  function handleAddCategory() {
+    goto(Route.category_new(params.uuid));
+  }
 
-  // Edit category state
-  let editCategoryDrawerOpen = $state(false);
-  let categoryToEdit = $state<CategoryWithStatus | null>(null);
-  let categoryName = $state('');
-  let categoryLimit = $state('');
-  let isUpdatingCategory = $state(false);
-  let shouldRefreshCategory = $state(false);
-
-  // Edit purchase item state
-  let editItemDrawerOpen = $state(false);
-  let itemToEdit = $state<BudgetItem | null>(null);
-  let itemName = $state('');
-  let itemAmount = $state('');
-  let itemCategoryId = $state('');
-  let itemPurchaseDate = $state<Date>(new Date());
-  let isUpdatingItem = $state(false);
-  let shouldRefreshItem = $state(false);
-  let categoryOptions = $state<Array<{ value: string; name: string }>>([]);
+  function handleAddItem() {
+    goto(Route.item_new(params.uuid));
+  }
 
   // Category sort state
   type CategorySortOption =
@@ -272,17 +251,9 @@
 
   function handleEditClick() {
     if (budget) {
-      editDrawerOpen = true;
+      const currentUrl = page.url.pathname + page.url.search;
+      goto(`${Route.budget_edit(params.uuid)}?from=${encodeURIComponent(currentUrl)}`);
     }
-  }
-
-  function handleEditSuccess() {
-    getBudget(params.uuid).refresh();
-    editDrawerOpen = false;
-  }
-
-  function handleEditCancel() {
-    editDrawerOpen = false;
   }
 
   function handleDeleteBudgetClick() {
@@ -303,124 +274,29 @@
   function handleEditCategoryClick(category: CategoryWithStatus, e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    categoryToEdit = category;
-    categoryName = category.name;
-    categoryLimit = centsToDollars(category.limit).toString();
-    editCategoryDrawerOpen = true;
+    const currentUrl = page.url.pathname + page.url.search;
+    goto(
+      `${Route.category_edit(params.uuid, category.uuid)}?from=${encodeURIComponent(currentUrl)}`,
+    );
   }
-
-  function handleEditCategoryCancel() {
-    editCategoryDrawerOpen = false;
-    categoryToEdit = null;
-    categoryName = '';
-    categoryLimit = '';
-  }
-
-  function handleEditCategorySuccess() {
-    shouldRefreshCategory = true;
-    editCategoryDrawerOpen = false;
-  }
-
-  // Watch for category drawer close and refresh when it closes
-  let prevEditCategoryDrawerOpen = $state(false);
-  $effect(() => {
-    if (prevEditCategoryDrawerOpen && !editCategoryDrawerOpen && shouldRefreshCategory) {
-      // Drawer just closed, use microtask to wait for DOM updates, then wait for animation
-      Promise.resolve().then(() => {
-        // Wait for CSS transition to complete (typically 300ms for drawer)
-        // Use requestAnimationFrame to ensure we're after the browser's paint
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Additional frame to ensure transition has started
-            requestAnimationFrame(async () => {
-              await getBudget(params.uuid).refresh();
-              categoryToEdit = null;
-              categoryName = '';
-              categoryLimit = '';
-              shouldRefreshCategory = false;
-            });
-          });
-        });
-      });
-    }
-    prevEditCategoryDrawerOpen = editCategoryDrawerOpen;
-  });
 
   function handleEditItemClick(item: BudgetItem, e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    itemToEdit = item;
-    itemName = item.name;
-    itemAmount = centsToDollars(item.amount).toString();
-    itemCategoryId = item.categoryId;
-    itemPurchaseDate = new Date(item.purchaseDate);
-
-    // Load categories for the budget
-    if (budget) {
-      getCategories(budget.uuid).then((cats) => {
-        categoryOptions = cats.map((cat) => ({
-          value: cat.uuid,
-          name: cat.name,
-        }));
-      });
-    }
-
-    editItemDrawerOpen = true;
+    const currentUrl = page.url.pathname + page.url.search;
+    goto(`${Route.item_edit(params.uuid, item.uuid)}?from=${encodeURIComponent(currentUrl)}`);
   }
-
-  function handleEditItemCancel() {
-    editItemDrawerOpen = false;
-    itemToEdit = null;
-    itemName = '';
-    itemAmount = '';
-    itemCategoryId = '';
-    itemPurchaseDate = new Date();
-    categoryOptions = [];
-  }
-
-  function handleEditItemSuccess() {
-    shouldRefreshItem = true;
-    editItemDrawerOpen = false;
-  }
-
-  // Watch for item drawer close and refresh when it closes
-  let prevEditItemDrawerOpen = $state(false);
-  $effect(() => {
-    if (prevEditItemDrawerOpen && !editItemDrawerOpen && shouldRefreshItem) {
-      // Drawer just closed, use microtask to wait for DOM updates, then wait for animation
-      Promise.resolve().then(() => {
-        // Wait for CSS transition to complete (typically 300ms for drawer)
-        // Use requestAnimationFrame to ensure we're after the browser's paint
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Additional frame to ensure transition has started
-            requestAnimationFrame(async () => {
-              await getBudget(params.uuid).refresh();
-              itemToEdit = null;
-              itemName = '';
-              itemAmount = '';
-              itemCategoryId = '';
-              itemPurchaseDate = new Date();
-              categoryOptions = [];
-              shouldRefreshItem = false;
-            });
-          });
-        });
-      });
-    }
-    prevEditItemDrawerOpen = editItemDrawerOpen;
-  });
 
   onMount(() => {
     getBudget(params.uuid).refresh();
   });
 </script>
 
-<div class="min-h-screen bg-neutral-50 pb-6 dark:bg-neutral-900">
+<div class="bg-neutral-50 pb-6 dark:bg-neutral-900">
   <header
     class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95"
   >
-    <div class="flex items-center gap-3 px-4 py-4">
+    <div class="mx-auto flex max-w-[1244px] items-center gap-3 px-4 py-4">
       <Button
         color="alternative"
         size="sm"
@@ -455,7 +331,7 @@
   </header>
 
   {#if budget}
-    <main class="px-4 py-4">
+    <main class="mx-auto max-w-[1244px] px-4 py-4">
       <div class="mb-8 border-b border-neutral-200 pb-8 dark:border-neutral-800">
         <div class="mb-6">
           <div class="mb-4 flex items-baseline justify-start gap-4">
@@ -504,18 +380,30 @@
         <div class="mb-6">
           <div class="mb-3 flex items-center justify-between gap-2">
             <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Categories</P>
-            <Button
-              color="alternative"
-              size="sm"
-              outline
-              class="border-none p-2"
-              onclick={() => (showCategoryFilters = !showCategoryFilters)}
-              aria-label="Toggle category filters"
-            >
-              <AdjustmentsHorizontalOutline
-                class="text-primary-900 dark:text-primary-200 h-4 w-4"
-              />
-            </Button>
+            <div class="flex items-center gap-2">
+              <Button
+                color="primary"
+                size="sm"
+                pill
+                class="h-8 w-8 p-0"
+                onclick={handleAddCategory}
+                aria-label="Add category"
+              >
+                <PlusOutline class="h-4 w-4" />
+              </Button>
+              <Button
+                color="alternative"
+                size="sm"
+                outline
+                class="border-none p-2"
+                onclick={() => (showCategoryFilters = !showCategoryFilters)}
+                aria-label="Toggle category filters"
+              >
+                <AdjustmentsHorizontalOutline
+                  class="text-primary-900 dark:text-primary-200 h-4 w-4"
+                />
+              </Button>
+            </div>
           </div>
 
           {#if showCategoryFilters}
@@ -571,7 +459,7 @@
                   (item) => item.categoryId === category.uuid,
                 ).length}
                 <div
-                  class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
+                  class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
                   role="button"
                   tabindex="0"
                   onclick={(e) => {
@@ -598,7 +486,6 @@
                       </P>
                       <EditIcon
                         onclick={(e: MouseEvent) => handleEditCategoryClick(category, e)}
-                        disabled={isUpdatingCategory}
                         ariaLabel="Edit category"
                       />
                       <DeleteIcon
@@ -661,16 +548,30 @@
               </span>
             {/if}
           </P>
-          <Button
-            color="alternative"
-            size="sm"
-            outline
-            class="border-none p-2"
-            onclick={() => (showFilters = !showFilters)}
-            aria-label="Toggle filters"
-          >
-            <AdjustmentsHorizontalOutline class="text-primary-900 dark:text-primary-200 h-4 w-4" />
-          </Button>
+          <div class="flex items-center gap-2">
+            <Button
+              color="primary"
+              size="sm"
+              pill
+              class="h-8 w-8 p-0"
+              onclick={handleAddItem}
+              aria-label="Add purchase"
+            >
+              <PlusOutline class="h-4 w-4" />
+            </Button>
+            <Button
+              color="alternative"
+              size="sm"
+              outline
+              class="border-none p-2"
+              onclick={() => (showFilters = !showFilters)}
+              aria-label="Toggle filters"
+            >
+              <AdjustmentsHorizontalOutline
+                class="text-primary-900 dark:text-primary-200 h-4 w-4"
+              />
+            </Button>
+          </div>
         </div>
         {#if showFilters}
           <div
@@ -699,31 +600,81 @@
                 <div
                   class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                 >
-                  <div class="flex items-start justify-between">
-                    <div class="min-w-0 flex-1">
-                      <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
+                  <div class="flex flex-col">
+                    <div class="flex w-full items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
+                          {item.name}
+                        </P>
+                        <P
+                          size="base"
+                          class="text-primary-900 dark:text-primary-200 font-semibold whitespace-nowrap"
+                        >
+                          {formatCurrency(item.amount)}
+                        </P>
+                      </div>
+                      <div class="flex items-center">
+                        <EditIcon
+                          onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
+                          ariaLabel="Edit purchase"
+                        />
+                        <DeleteIcon
+                          onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
+                          disabled={isDeleting}
+                          ariaLabel="Delete purchase"
+                        />
+                      </div>
+                    </div>
+                    <div class="flex w-full items-center justify-between">
+                      {#if category}
+                        <span
+                          class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
+                          title={category.name}
+                        >
+                          {category.name}
+                        </span>
+                      {/if}
+                      <span
+                        class="shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
+                      >
+                        {isoStringToDate(item.purchaseDate)}
+                      </span>
+                    </div>
+                  </div>
+                  <!-- <div class="flex items-start justify-between gap-3"> -->
+                  <!-- <div class="min-w-0 flex-1 overflow-hidden"> -->
+                  <!-- <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                         {item.name}
                       </P>
-                      <div class="mt-1 flex items-center gap-2">
+                      <div class="flex w-full border border-red-500">
+                        <div>item 1</div>
+                        <div>item 2</div>
+                      </div> -->
+                  <!-- <div class="mt-1 flex items-center gap-2">
                         {#if category}
                           <span
-                            class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 rounded-full px-2 py-0.5 text-base"
+                            class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
+                            title={category.name}
                           >
                             {category.name}
                           </span>
                         {/if}
-                        <span class="text-base text-neutral-500 dark:text-neutral-400">
+                        <span
+                          class="shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
+                        >
                           {isoStringToDate(item.purchaseDate)}
                         </span>
-                      </div>
-                    </div>
-                    <div class="ml-3 flex items-center gap-2">
-                      <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
+                      </div> -->
+                  <!-- </div> -->
+                  <!-- <div class="flex shrink-0 items-center gap-2">
+                      <P
+                        size="base"
+                        class="text-primary-900 dark:text-primary-200 font-semibold whitespace-nowrap"
+                      >
                         {formatCurrency(item.amount)}
                       </P>
                       <EditIcon
                         onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
-                        disabled={isUpdatingItem}
                         ariaLabel="Edit purchase"
                       />
                       <DeleteIcon
@@ -731,8 +682,8 @@
                         disabled={isDeleting}
                         ariaLabel="Delete purchase"
                       />
-                    </div>
-                  </div>
+                    </div> -->
+                  <!-- </div> -->
                 </div>
               {/each}
             </div>
@@ -757,7 +708,9 @@
       </div>
     </main>
   {:else}
-    <main class="flex min-h-[60vh] flex-col items-center justify-center px-4">
+    <main
+      class="mx-auto flex min-h-[60vh] max-w-[1244px] flex-col items-center justify-center px-4"
+    >
       <P size="xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
         Budget Not Found
       </P>
@@ -864,13 +817,6 @@
   </Modal>
 
   {#if budget}
-    <EditBudgetDrawer
-      bind:open={editDrawerOpen}
-      budgetId={budget.uuid}
-      initialName={budget.name}
-      onSuccess={handleEditSuccess}
-      onCancel={handleEditCancel}
-    />
     <DeleteBudgetModal
       bind:open={deleteBudgetModalOpen}
       budgetId={budget.uuid}
@@ -879,227 +825,4 @@
       onCancel={handleDeleteBudgetCancel}
     />
   {/if}
-
-  <Drawer bind:open={editCategoryDrawerOpen} placement="top" class="z-50">
-    <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
-      <!-- Header -->
-      <div
-        class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
-      >
-        <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Edit Category</P>
-      </div>
-
-      <!-- Content -->
-      <div class="flex-1 overflow-y-auto px-4 py-4">
-        <form
-          {...updateCategory.enhance(async ({ form, submit }) => {
-            isUpdatingCategory = true;
-            try {
-              await submit();
-
-              if (updateCategory.result?.success === true) {
-                form.reset();
-                await handleEditCategorySuccess();
-              }
-            } catch (error) {
-              console.error('Error updating category:', error);
-            } finally {
-              isUpdatingCategory = false;
-            }
-          })}
-          class="space-y-4"
-        >
-          <input type="hidden" name="categoryId" value={categoryToEdit?.uuid || ''} />
-          <div>
-            <label
-              for="category-name"
-              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
-            >
-              Category Name
-            </label>
-            <Input
-              id="category-name"
-              name="name"
-              bind:value={categoryName}
-              placeholder="Enter category name"
-              required
-              disabled={isUpdatingCategory}
-              class="w-full text-xl"
-            />
-          </div>
-          <div>
-            <label
-              for="category-limit"
-              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
-            >
-              Monthly Limit ($)
-            </label>
-            <Input
-              id="category-limit"
-              name="limit"
-              type="number"
-              step="0.01"
-              min="0"
-              bind:value={categoryLimit}
-              placeholder="500.00"
-              required
-              disabled={isUpdatingCategory}
-              class="w-full text-xl"
-            />
-          </div>
-
-          <div class="flex w-full justify-between gap-4 pt-4">
-            <Button
-              onclick={handleEditCategoryCancel}
-              color="alternative"
-              disabled={isUpdatingCategory}
-              class="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              color="primary"
-              disabled={isUpdatingCategory ||
-                !categoryName.trim() ||
-                !String(categoryLimit || '').trim()}
-              class="flex-1"
-            >
-              {isUpdatingCategory ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </Drawer>
-
-  <Drawer bind:open={editItemDrawerOpen} placement="top" class="z-50">
-    <div class="flex max-h-[90vh] w-full flex-col bg-white dark:bg-neutral-800">
-      <!-- Header -->
-      <div
-        class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
-      >
-        <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Edit Purchase</P>
-      </div>
-
-      <!-- Content -->
-      <div class="flex-1 overflow-y-auto px-4 py-4">
-        <form
-          {...updateBudgetItem.enhance(async ({ form, submit }) => {
-            isUpdatingItem = true;
-            try {
-              await submit();
-
-              if (updateBudgetItem.result?.success === true) {
-                form.reset();
-                await handleEditItemSuccess();
-              }
-            } catch (error) {
-              console.error('Error updating purchase:', error);
-            } finally {
-              isUpdatingItem = false;
-            }
-          })}
-          class="space-y-4"
-        >
-          <input type="hidden" name="budgetItemId" value={itemToEdit?.uuid || ''} />
-          <input type="hidden" name="purchaseDate" value={itemPurchaseDate.toISOString()} />
-          <div>
-            <label
-              for="item-name"
-              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
-            >
-              Purchase Name
-            </label>
-            <Input
-              id="item-name"
-              name="name"
-              bind:value={itemName}
-              placeholder="e.g., Milk"
-              required
-              disabled={isUpdatingItem}
-              class="w-full text-xl"
-            />
-          </div>
-          <div>
-            <label
-              for="item-date"
-              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
-            >
-              Date
-            </label>
-            <Datepicker
-              id="item-date"
-              inputClass="text-xl h-12"
-              color="primary"
-              bind:value={itemPurchaseDate}
-              autohide
-              disabled={isUpdatingItem}
-            />
-          </div>
-          <div>
-            <label
-              for="item-category"
-              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
-            >
-              Category
-            </label>
-            <Select
-              id="item-category"
-              name="categoryId"
-              size="lg"
-              classes={{ select: 'h-12 truncate text-xl' }}
-              items={categoryOptions}
-              bind:value={itemCategoryId}
-              disabled={categoryOptions.length === 0 || isUpdatingItem}
-              placeholder="Select a category"
-              required
-            />
-          </div>
-          <div>
-            <label
-              for="item-amount"
-              class="mb-2 block text-base font-medium text-neutral-900 dark:text-neutral-300"
-            >
-              Amount ($)
-            </label>
-            <Input
-              id="item-amount"
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              bind:value={itemAmount}
-              placeholder="5.00"
-              required
-              disabled={isUpdatingItem}
-              class="w-full text-xl"
-            />
-          </div>
-
-          <div class="flex w-full justify-between gap-4 pt-4">
-            <Button
-              onclick={handleEditItemCancel}
-              color="alternative"
-              disabled={isUpdatingItem}
-              class="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              color="primary"
-              disabled={isUpdatingItem ||
-                !itemName.trim() ||
-                !String(itemAmount || '').trim() ||
-                !itemCategoryId}
-              class="flex-1"
-            >
-              {isUpdatingItem ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </Drawer>
 </div>

@@ -14,7 +14,21 @@
 
   type DrawerStep = 'select' | 'budget' | 'category' | 'item';
 
-  let { open = $bindable(false) } = $props();
+  type Props = {
+    open?: boolean;
+    initialStep?: DrawerStep;
+    selectedBudgetId?: string;
+    onSuccess?: () => void;
+    onClose?: () => void;
+  };
+
+  let {
+    open = $bindable(false),
+    initialStep = 'select',
+    selectedBudgetId = '',
+    onSuccess,
+    onClose,
+  }: Props = $props();
 
   const budgetsQuery = getBudgets();
   let budgets = $state<BudgetWithRelations[]>([]);
@@ -26,6 +40,7 @@
 
   let currentStep = $state<DrawerStep>('select');
   let itemBudgetId = $state('');
+  let wasOpen = $state(false);
 
   // Load budgets when drawer opens or when navigating to steps that need them
   async function loadBudgets() {
@@ -33,13 +48,34 @@
     budgets = await budgetsQuery;
   }
 
-  // Load budgets when drawer opens and reset to select step
+  // Load budgets when drawer opens and set initial step
   $effect(() => {
     if (open) {
-      // Ensure we start at the select step when drawer opens
+      // Set the initial step when drawer opens
+      currentStep = initialStep;
+      resetForms();
+
+      // Set the selected budget ID if provided
+      if (selectedBudgetId) {
+        itemBudgetId = selectedBudgetId;
+      }
+
+      loadBudgets();
+
+      // If starting at category or item step, navigate to it
+      if (initialStep === 'category' || initialStep === 'item') {
+        goToStep(initialStep);
+      }
+      wasOpen = true;
+    } else if (wasOpen) {
+      // When drawer closes (and it was previously open), call onClose callback if provided
+      if (onClose) {
+        onClose();
+      }
+      // Reset to select step when drawer closes
       currentStep = 'select';
       resetForms();
-      loadBudgets();
+      wasOpen = false;
     }
   });
 
@@ -89,13 +125,6 @@
     categories = [];
   }
 
-  function handleClose() {
-    // Reset to select step immediately before closing
-    currentStep = 'select';
-    resetForms();
-    open = false;
-  }
-
   async function goToStep(step: DrawerStep) {
     currentStep = step;
 
@@ -120,7 +149,25 @@
       await loadCategories(itemBudgetId);
     }
 
-    handleClose();
+    // Call the onSuccess callback if provided
+    if (onSuccess) {
+      onSuccess();
+    }
+
+    handleCloseInternal();
+  }
+
+  function handleCloseInternal() {
+    // Reset to select step immediately before closing
+    currentStep = 'select';
+    resetForms();
+    wasOpen = false; // Set this before setting open to false to prevent double callback
+    open = false;
+
+    // Call the onClose callback if provided
+    if (onClose) {
+      onClose();
+    }
   }
 
   function handleBudgetChange(budgetId: string) {
@@ -128,10 +175,8 @@
   }
 </script>
 
-<!-- <Drawer bind:open placement="right" class="z-50">
-  <div class="flex max-h-[100vh] w-full max-w-md flex-col bg-white dark:bg-neutral-800"> -->
-<Drawer bind:open placement="top" class="z-50">
-  <div class="flex max-h-[90vh] flex-col bg-white dark:bg-neutral-800">
+<Drawer bind:open placement="right" class="z-50">
+  <div class="flex max-h-[100vh] w-full max-w-md flex-col bg-white dark:bg-neutral-800">
     <!-- Header -->
     <div
       class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
@@ -201,7 +246,7 @@
         <!-- Category Form -->
         <AddCategory
           {budgetOptions}
-          selectedBudgetId={budgets.length === 1 ? budgets[0].uuid : ''}
+          selectedBudgetId={selectedBudgetId || (budgets.length === 1 ? budgets[0].uuid : '')}
           onSuccess={handleSuccess}
         />
       {:else if currentStep === 'item'}
@@ -209,7 +254,7 @@
         <AddItem
           {budgetOptions}
           {categoryOptions}
-          selectedBudgetId={budgets.length === 1 ? budgets[0].uuid : ''}
+          selectedBudgetId={selectedBudgetId || (budgets.length === 1 ? budgets[0].uuid : '')}
           onSuccess={handleSuccess}
           onBudgetChange={handleBudgetChange}
         />

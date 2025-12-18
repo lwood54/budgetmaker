@@ -3,12 +3,12 @@
   import Select from '$lib/components/Select.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
-  import EditBudgetDrawer from './components/EditBudgetDrawer.svelte';
   import DeleteBudgetModal from './components/DeleteBudgetModal.svelte';
   import { PlusOutline } from 'flowbite-svelte-icons';
   import { getBudgets } from '$lib/api/budgets.remote';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
+  import { page } from '$app/state';
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { formatCurrency } from '$lib/utils/money';
   import { onMount } from 'svelte';
@@ -17,10 +17,6 @@
 
   let deleteModalOpen = $state(false);
   let budgetToDelete = $state<BudgetWithRelations | null>(null);
-
-  // Edit budget state
-  let editDrawerOpen = $state(false);
-  let budgetToEdit = $state<BudgetWithRelations | null>(null);
 
   type SortOption =
     | 'created-date'
@@ -46,19 +42,8 @@
   function handleEditClick(budget: BudgetWithRelations, e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    budgetToEdit = budget;
-    editDrawerOpen = true;
-  }
-
-  function handleEditSuccess() {
-    getBudgets().refresh();
-    editDrawerOpen = false;
-    budgetToEdit = null;
-  }
-
-  function handleEditCancel() {
-    editDrawerOpen = false;
-    budgetToEdit = null;
+    const currentUrl = page.url.pathname + page.url.search;
+    goto(`${Route.budget_edit(budget.uuid)}?from=${encodeURIComponent(currentUrl)}`);
   }
 
   function handleDeleteCancel() {
@@ -180,11 +165,11 @@
   });
 </script>
 
-<div class="min-h-screen bg-neutral-50 pb-24 dark:bg-neutral-900">
+<div class="bg-neutral-50 pb-24 dark:bg-neutral-900">
   <header
     class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95"
   >
-    <div class="px-4 py-4">
+    <div class="mx-auto max-w-[1244px] px-4 py-4">
       <div class="mb-3 flex items-center justify-between">
         <P size="3xl" class="text-primary-900 dark:text-primary-200 font-bold">My Budgets</P>
         {#if budgets.length > 0}
@@ -203,15 +188,27 @@
           />
         {/if}
       </div>
-      <p class="mt-1 text-base text-neutral-600 dark:text-neutral-400">
-        {budgets.length === 0
-          ? 'No budgets yet'
-          : `${budgets.length} ${budgets.length === 1 ? 'budget' : 'budgets'}`}
-      </p>
+      <div class="mt-1 flex items-center justify-between">
+        <p class="text-base text-neutral-600 dark:text-neutral-400">
+          {budgets.length === 0
+            ? 'No budgets yet'
+            : `${budgets.length} ${budgets.length === 1 ? 'budget' : 'budgets'}`}
+        </p>
+        <Button
+          color="primary"
+          size="sm"
+          pill
+          class="h-8 w-8 p-0"
+          onclick={() => goto(Route.budget_new)}
+          aria-label="Create new budget"
+        >
+          <PlusOutline class="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   </header>
 
-  <main class="px-4 py-4">
+  <main class="mx-auto max-w-[1244px] px-4 py-4">
     {#if budgets.length === 0}
       <div class="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div class="bg-primary-100 dark:bg-primary-900/30 mb-6 rounded-full p-6">
@@ -223,7 +220,12 @@
         <p class="mb-6 max-w-xs text-base text-neutral-600 dark:text-neutral-400">
           Start tracking your expenses and managing your finances with a new budget.
         </p>
-        <Button color="primary" size="lg" class="w-full max-w-xs">
+        <Button
+          color="primary"
+          size="lg"
+          class="w-full max-w-xs"
+          onclick={() => goto(Route.budget_new)}
+        >
           <PlusOutline class="mr-2" />
           Create Budget
         </Button>
@@ -346,16 +348,6 @@
       budgetName={budgetToDelete.name}
       onSuccess={handleDeleteSuccess}
       onCancel={handleDeleteCancel}
-    />
-  {/if}
-
-  {#if budgetToEdit}
-    <EditBudgetDrawer
-      bind:open={editDrawerOpen}
-      budgetId={budgetToEdit.uuid}
-      initialName={budgetToEdit.name}
-      onSuccess={handleEditSuccess}
-      onCancel={handleEditCancel}
     />
   {/if}
 </div>

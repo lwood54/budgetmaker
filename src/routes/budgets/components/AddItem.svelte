@@ -21,18 +21,22 @@
   }
 
   type Props = {
-    budgetOptions: BudgetOption[];
+    budgetOptions?: BudgetOption[];
     categoryOptions: CategoryOption[];
     selectedBudgetId?: string;
+    hideBudgetSelect?: boolean;
     onSuccess: () => void;
+    onCancel?: () => void;
     onBudgetChange?: (budgetId: string) => void;
   };
 
   let {
-    budgetOptions,
+    budgetOptions = [],
     categoryOptions,
     selectedBudgetId: initialBudgetId = '',
+    hideBudgetSelect = false,
     onSuccess,
+    onCancel,
     onBudgetChange,
   }: Props = $props();
 
@@ -129,19 +133,23 @@
       disabled={isSubmitting}
     />
   </div>
-  <div>
-    <Label for="item-budget" class="mb-2 block">Budget</Label>
-    <Select
-      id="item-budget"
-      name="budgetId"
-      size="lg"
-      classes={{ select: 'h-12 truncate text-xl' }}
-      items={budgetOptions}
-      bind:value={itemBudgetId}
-      disabled={isSubmitting}
-      required
-    />
-  </div>
+  {#if !hideBudgetSelect}
+    <div>
+      <Label for="item-budget" class="mb-2 block">Budget</Label>
+      <Select
+        id="item-budget"
+        name="budgetId"
+        size="lg"
+        classes={{ select: 'h-12 truncate text-xl' }}
+        items={budgetOptions}
+        bind:value={itemBudgetId}
+        disabled={isSubmitting}
+        required
+      />
+    </div>
+  {:else}
+    <input type="hidden" name="budgetId" value={itemBudgetId} />
+  {/if}
   <div>
     <Label for="item-category" class="mb-2 block">Category</Label>
     <Select
@@ -168,7 +176,25 @@
       class="text-xl"
     />
   </div>
-  <Button type="submit" color="primary" class="w-full" disabled={isSubmitting}>
-    Record Purchase
-  </Button>
+  <div class="flex gap-3">
+    {#if onCancel}
+      <Button
+        type="button"
+        color="alternative"
+        class="flex-1"
+        disabled={isSubmitting}
+        onclick={onCancel}
+      >
+        Cancel
+      </Button>
+    {/if}
+    <Button
+      type="submit"
+      color="primary"
+      class={onCancel ? 'flex-1' : 'w-full'}
+      disabled={isSubmitting}
+    >
+      Record Purchase
+    </Button>
+  </div>
 </form>

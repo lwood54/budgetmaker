@@ -5,9 +5,10 @@
 
   type Props = {
     onSuccess: () => void;
+    onCancel?: () => void;
   };
 
-  let { onSuccess }: Props = $props();
+  let { onSuccess, onCancel }: Props = $props();
   let isSubmitting = $state(false);
 </script>
 
@@ -40,7 +41,25 @@
       class="text-xl"
     />
   </div>
-  <Button type="submit" color="primary" class="w-full" disabled={isSubmitting}>
-    Create Budget
-  </Button>
+  <div class="flex w-full gap-4 pt-4">
+    {#if onCancel}
+      <Button
+        type="button"
+        onclick={onCancel}
+        color="alternative"
+        disabled={isSubmitting}
+        class="flex-1"
+      >
+        Cancel
+      </Button>
+    {/if}
+    <Button
+      type="submit"
+      color="primary"
+      class={onCancel ? 'flex-1' : 'w-full'}
+      disabled={isSubmitting}
+    >
+      Create Budget
+    </Button>
+  </div>
 </form>

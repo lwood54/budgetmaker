@@ -12,11 +12,13 @@
   }
 </script>
 
-<div class="pb-12">
+<!-- <div class="pb-12"> -->
+<div>
   {@render children()}
 </div>
 
-<div class="fixed right-4 bottom-4 z-20">
+<!-- Commented out: Floating action button that opens the create drawer -->
+<!-- <div class="fixed right-4 bottom-4 z-20">
   <Button
     color="primary"
     size="xl"
@@ -29,4 +31,4 @@
   </Button>
 </div>
 
-<AddItemDrawer bind:open={drawerOpen} />
+<AddItemDrawer bind:open={drawerOpen} /> -->

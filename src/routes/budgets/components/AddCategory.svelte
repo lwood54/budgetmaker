@@ -10,12 +10,20 @@
   }
 
   type Props = {
-    budgetOptions: BudgetOption[];
+    budgetOptions?: BudgetOption[];
     selectedBudgetId?: string;
+    hideBudgetSelect?: boolean;
     onSuccess: () => void;
+    onCancel?: () => void;
   };
 
-  let { budgetOptions, selectedBudgetId: initialBudgetId = '', onSuccess }: Props = $props();
+  let {
+    budgetOptions = [],
+    selectedBudgetId: initialBudgetId = '',
+    hideBudgetSelect = false,
+    onSuccess,
+    onCancel,
+  }: Props = $props();
 
   let isSubmitting = $state(false);
   let selectedBudgetId = $state(initialBudgetId);
@@ -70,19 +78,23 @@
       class="text-xl"
     />
   </div>
-  <div>
-    <Label for="category-budget" class="mb-2 block">Budget</Label>
-    <Select
-      id="category-budget"
-      name="budgetId"
-      size="lg"
-      classes={{ select: 'h-12 truncate text-xl' }}
-      items={budgetOptions}
-      bind:value={selectedBudgetId}
-      disabled={isSubmitting}
-      required
-    />
-  </div>
+  {#if !hideBudgetSelect}
+    <div>
+      <Label for="category-budget" class="mb-2 block">Budget</Label>
+      <Select
+        id="category-budget"
+        name="budgetId"
+        size="lg"
+        classes={{ select: 'h-12 truncate text-xl' }}
+        items={budgetOptions}
+        bind:value={selectedBudgetId}
+        disabled={isSubmitting}
+        required
+      />
+    </div>
+  {:else}
+    <input type="hidden" name="budgetId" value={selectedBudgetId} />
+  {/if}
   <div>
     <Label for="category-limit" class="mb-2 block">Monthly Limit ($)</Label>
     <Input
@@ -95,7 +107,25 @@
       class="text-xl"
     />
   </div>
-  <Button type="submit" color="primary" class="w-full" disabled={isSubmitting}>
-    Create Category
-  </Button>
+  <div class="flex gap-3">
+    {#if onCancel}
+      <Button
+        type="button"
+        color="alternative"
+        class="flex-1"
+        disabled={isSubmitting}
+        onclick={onCancel}
+      >
+        Cancel
+      </Button>
+    {/if}
+    <Button
+      type="submit"
+      color="primary"
+      class={onCancel ? 'flex-1' : 'w-full'}
+      disabled={isSubmitting}
+    >
+      Create Category
+    </Button>
+  </div>
 </form>

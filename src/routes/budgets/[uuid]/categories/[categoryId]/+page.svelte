@@ -2,11 +2,13 @@
   import { Button, P, Progressbar, Modal } from 'flowbite-svelte';
   import { ArrowLeftOutline } from 'flowbite-svelte-icons';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
-  import { getCategoryPurchases, deleteBudgetItem } from '$lib/api/budgets.remote';
+  import EditIcon from '$lib/components/EditIcon.svelte';
+  import { getCategoryPurchases, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
   import { isoStringToDate } from '$lib/helpers/conversions';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
+  import { page } from '$app/state';
   import type { BudgetItem } from '$lib/server/db/schema';
 
   let { params } = $props();
@@ -49,10 +51,14 @@
     return 'green';
   });
 
-  // Delete state
+  // Delete state for items
   let deleteModalOpen = $state(false);
   let itemToDelete = $state<BudgetItem | null>(null);
   let isDeleting = $state(false);
+
+  // Delete state for category
+  let deleteCategoryModalOpen = $state(false);
+  let isDeletingCategory = $state(false);
 
   function handleDeleteClick(item: BudgetItem, e: MouseEvent) {
     e.preventDefault();
@@ -74,14 +80,46 @@
     deleteModalOpen = false;
     itemToDelete = null;
   }
+
+  function handleEditCategoryClick() {
+    const currentUrl = page.url.pathname + page.url.search;
+    goto(
+      `${Route.category_edit(params.uuid, params.categoryId)}?from=${encodeURIComponent(currentUrl)}`,
+    );
+  }
+
+  function handleEditItemClick(item: BudgetItem, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentUrl = page.url.pathname + page.url.search;
+    goto(`${Route.item_edit(params.uuid, item.uuid)}?from=${encodeURIComponent(currentUrl)}`);
+  }
+
+  function handleDeleteCategoryClick() {
+    deleteCategoryModalOpen = true;
+  }
+
+  function handleDeleteCategoryCancel() {
+    deleteCategoryModalOpen = false;
+  }
+
+  async function handleDeleteCategorySuccess() {
+    await getCategoryPurchases({
+      categoryId: params.categoryId,
+      budgetId: params.uuid,
+    }).refresh();
+    deleteCategoryModalOpen = false;
+    // Navigate back to budget page after deletion
+    goto(Route.budget(params.uuid));
+  }
 </script>
 
-<div class="min-h-screen bg-neutral-50 pb-6 dark:bg-neutral-900">
+<div class="bg-neutral-50 pb-6 dark:bg-neutral-900">
   <!-- Header -->
   <header
     class="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95"
   >
-    <div class="flex items-center gap-3 px-4 py-4">
+    <div class="mx-auto flex max-w-[1244px] items-center gap-3 px-4 py-4">
       <Button
         color="alternative"
         size="sm"
@@ -103,11 +141,21 @@
           </P>
         {/if}
       </div>
+      {#if categoryData}
+        <div class="flex items-center gap-2">
+          <EditIcon onclick={handleEditCategoryClick} ariaLabel="Edit category" />
+          <DeleteIcon
+            onclick={handleDeleteCategoryClick}
+            disabled={isDeletingCategory}
+            ariaLabel="Delete category"
+          />
+        </div>
+      {/if}
     </div>
   </header>
 
   {#if categoryData}
-    <main class="px-4 py-4">
+    <main class="mx-auto max-w-[1244px] px-4 py-4">
       <div class="mb-8 border-b border-neutral-200 pb-8 dark:border-neutral-800">
         <div class="mb-6">
           <div class="mb-4 flex items-baseline justify-start gap-4">
@@ -178,6 +226,10 @@
                     <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
                       {formatCurrency(item.amount)}
                     </P>
+                    <EditIcon
+                      onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
+                      ariaLabel="Edit purchase"
+                    />
                     <DeleteIcon
                       onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
                       disabled={isDeleting}
@@ -200,7 +252,9 @@
       </div>
     </main>
   {:else}
-    <main class="flex min-h-[60vh] flex-col items-center justify-center px-4">
+    <main
+      class="mx-auto flex min-h-[60vh] max-w-[1244px] flex-col items-center justify-center px-4"
+    >
       <P size="xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
         Category Not Found
       </P>
@@ -247,6 +301,61 @@
         >
           <input type="hidden" name="budgetItemId" value={itemToDelete?.uuid || ''} />
           <Button color="red" type="submit" disabled={isDeleting || !itemToDelete}>Delete</Button>
+        </form>
+      </div>
+    {/snippet}
+  </Modal>
+
+  <!-- Delete Category Confirmation Modal -->
+  <Modal title="Delete Category" bind:open={deleteCategoryModalOpen} autoclose>
+    <P size="xl">Are you sure you want to delete this category?</P>
+    {#if categoryData}
+      <P class="text-primary-900 dark:text-primary-200 font-semibold">
+        {categoryData.category.name}
+      </P>
+      {@const itemCount = categoryData.items.length}
+      {#if itemCount > 0}
+        <P size="base" class="mt-2 text-yellow-600 dark:text-yellow-400">
+          Warning: This category has {itemCount}
+          {itemCount === 1 ? 'purchase' : 'purchases'}. All purchases in this category will also be
+          deleted.
+        </P>
+      {/if}
+    {/if}
+    <P size="base" class="mt-2 text-neutral-600 dark:text-neutral-400">
+      This action cannot be undone.
+    </P>
+
+    {#snippet footer()}
+      <div class="flex w-full justify-between gap-4">
+        <Button
+          onclick={handleDeleteCategoryCancel}
+          color="alternative"
+          disabled={isDeletingCategory}
+        >
+          Cancel
+        </Button>
+        <form
+          {...deleteCategory.enhance(async ({ form, submit }) => {
+            isDeletingCategory = true;
+            try {
+              await submit();
+
+              if (deleteCategory.result?.success === true) {
+                form.reset();
+                await handleDeleteCategorySuccess();
+              }
+            } catch (error) {
+              console.error('Error deleting category:', error);
+            } finally {
+              isDeletingCategory = false;
+            }
+          })}
+        >
+          <input type="hidden" name="categoryId" value={params.categoryId} />
+          <Button color="red" type="submit" disabled={isDeletingCategory || !categoryData}>
+            Delete
+          </Button>
         </form>
       </div>
     {/snippet}
