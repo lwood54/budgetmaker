@@ -1,0 +1,20 @@
+[
+  {
+    "id": "l-paycheck-001",
+    "groupId": "g-001",
+    "name": "L - Paycheck",
+    "yearId": "year-2026",
+    "monthId": "01-2026",
+    "amount": 785000,
+    "type": "income"
+  },
+  {
+    "id": "t-paycheck-001",
+    "name": "T - Paycheck",
+    "groupId": "g-002",
+    "yearId": "year-2026",
+    "monthId": "01-2026",
+    "amount": 470000,
+    "type": "income"
+  }
+]

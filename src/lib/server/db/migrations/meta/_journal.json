@@ -57,6 +57,13 @@
       "when": 1766253721386,
       "tag": "0007_wealthy_ronan",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1766350969000,
+      "tag": "0008_remove_projections",
+      "breakpoints": true
     }
   ]
 }

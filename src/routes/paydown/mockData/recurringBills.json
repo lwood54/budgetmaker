@@ -1,0 +1,9 @@
+[
+  {
+    "id": "family-budget-001-SW-card",
+    "name": "SW Card",
+    "amount": 496000,
+    "type": "expense",
+    "isPaydown": false
+  }
+]

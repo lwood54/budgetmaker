@@ -1,0 +1,74 @@
+[
+  {
+    "id": "01-2026",
+    "name": "January",
+    "yearId": "year-2026",
+    "sequence": 1
+  },
+  {
+    "id": "02-2026",
+    "name": "February",
+    "yearId": "year-2026",
+    "sequence": 2
+  },
+  {
+    "id": "03-2026",
+    "name": "March",
+    "yearId": "year-2026",
+    "sequence": 3
+  },
+  {
+    "id": "04-2026",
+    "name": "April",
+    "yearId": "year-2026",
+    "sequence": 4
+  },
+  {
+    "id": "05-2026",
+    "name": "May",
+    "yearId": "year-2026",
+    "sequence": 5
+  },
+  {
+    "id": "06-2026",
+    "name": "June",
+    "yearId": "year-2026",
+    "sequence": 6
+  },
+  {
+    "id": "07-2026",
+    "name": "July",
+    "yearId": "year-2026",
+    "sequence": 7
+  },
+  {
+    "id": "08-2026",
+    "name": "August",
+    "yearId": "year-2026",
+    "sequence": 8
+  },
+  {
+    "id": "09-2026",
+    "name": "September",
+    "yearId": "year-2026",
+    "sequence": 9
+  },
+  {
+    "id": "10-2026",
+    "name": "October",
+    "yearId": "year-2026",
+    "sequence": 10
+  },
+  {
+    "id": "11-2026",
+    "name": "November",
+    "yearId": "year-2026",
+    "sequence": 11
+  },
+  {
+    "id": "12-2026",
+    "name": "December",
+    "yearId": "year-2026",
+    "sequence": 12
+  }
+]

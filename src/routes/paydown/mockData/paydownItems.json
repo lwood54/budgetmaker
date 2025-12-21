@@ -1,0 +1,82 @@
+[
+  {
+    "id": "mortgage-001",
+    "name": "Mortgage",
+    "balance": 24700000,
+    "payment": 255000,
+    "interestRate": 4.25,
+    "interestType": "fixed-mortgage",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "l-car-001",
+    "name": "L - Car",
+    "balance": 4142700,
+    "payment": 80000,
+    "interestRate": 4.25,
+    "interestType": "fixed-auto-loan",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "t-car-001",
+    "name": "T - Car",
+    "balance": 4427300,
+    "payment": 85000,
+    "interestRate": 4.25,
+    "interestType": "fixed-auto-loan",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "t-student-loan-001",
+    "name": "T - Student Loan",
+    "balance": 1155500,
+    "payment": 15000,
+    "interestRate": 4.5,
+    "interestType": "fixed-student-loan",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "t-discover-card-001",
+    "name": "T - Discover Card",
+    "balance": 631000,
+    "payment": 85000,
+    "interestRate": 0.0,
+    "interestType": "fixed-credit-card",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "l-capital-one-card-001",
+    "name": "L - Capital One Card",
+    "balance": 833000,
+    "payment": 15000,
+    "interestRate": 0.0,
+    "interestType": "fixed-credit-card",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "f-sync-couch-001",
+    "name": "Couch",
+    "balance": 212200,
+    "payment": 7000,
+    "interestRate": 0.0,
+    "interestType": "fixed-credit-card",
+    "type": "expense",
+    "isPaydown": true
+  },
+  {
+    "id": "f-home-depot-001",
+    "name": "Home Depot - Fridge",
+    "balance": 168000,
+    "payment": 10000,
+    "interestRate": 0.0,
+    "interestType": "fixed-credit-card",
+    "type": "expense",
+    "isPaydown": true
+  }
+]
