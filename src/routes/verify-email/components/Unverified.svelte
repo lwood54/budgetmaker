@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
   import CircleWithWarning from '$lib/assets/SvgComponents/combined/CircleWithWarning.svelte';
   import { Spinner } from 'flowbite-svelte';
+  import { resendVerificationEmail } from '$lib/api/auth.remote';
+  import { goto } from '$app/navigation';
 
   type _Props = {
     email?: string | null;
@@ -46,17 +47,18 @@
 
   {#if email}
     <form
-      method="post"
-      action="?/resend"
-      use:enhance={() => {
+      {...resendVerificationEmail.enhance(async ({ submit }) => {
         isResending = true;
-        return async ({ update }) => {
-          await update();
+        try {
+          await submit();
+        } catch (error) {
+          console.error('Resend error:', error);
+        } finally {
           isResending = false;
-        };
-      }}
+        }
+      })}
     >
-      <input type="hidden" name="email" value={email} />
+      <input type="hidden" name="email" value={email || ''} />
 
       <button
         type="submit"

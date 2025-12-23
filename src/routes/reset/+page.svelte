@@ -1,20 +1,36 @@
 <script lang="ts">
-  import { Card, Button, Label, Input, P, A, Alert, Spinner } from 'flowbite-svelte';
-  import { enhance } from '$app/forms';
+  import { Card, Button, Label, P, A, Alert, Spinner } from 'flowbite-svelte';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import { Route } from '$lib/constants/routes';
   import PasswordStrength from '$lib/components/PasswordStrength.svelte';
+  import {
+    getResetPageData,
+    requestPasswordReset,
+    resetPassword as resetPasswordForm,
+  } from '$lib/api/auth.remote';
+  import { goto } from '$app/navigation';
+  import Input from '$lib/components/Input.svelte';
 
-  let { data, form } = $props();
+  const data = getResetPageData();
+
+  // Handle redirect if user is already logged in
+  $effect(() => {
+    const pageData = data.current;
+    if (pageData?.redirectTo) {
+      goto(pageData.redirectTo);
+    }
+  });
 
   let showPassword = $state(false);
   let showConfirmPassword = $state(false);
   let loading = $state(false);
-  let password = $state('');
-  let confirmPassword = $state('');
 
-  let currentStep = $derived(form?.step || data?.step || 'request');
-  let currentToken = $derived(form?.token || data?.token);
+  // Get password value from form field for PasswordStrength component
+  const password = $derived(resetPasswordForm.fields.password.value || '');
+  const confirmPassword = $derived(resetPasswordForm.fields.confirmPassword.value || '');
+
+  let currentStep = $derived(data.current?.step || 'request');
+  let currentToken = $derived(data.current?.token);
 </script>
 
 <svelte:head>
@@ -47,35 +63,38 @@
 
   <div class="flex justify-center px-6">
     <Card class="min-w-full px-4 py-8 shadow sm:min-w-[500px] sm:rounded-lg sm:px-10">
-      {#if form?.error || data?.error}
+      {#if data.current?.error}
         <Alert color="red" class="mb-6">
           <span class="font-medium">Error:</span>
-          {form?.error || data?.error}
+          {data.current.error}
         </Alert>
       {/if}
 
       {#if currentStep === 'request'}
         <form
-          method="POST"
-          action="?/request"
-          use:enhance={() => {
+          novalidate
+          {...requestPasswordReset.enhance(async ({ submit }) => {
             loading = true;
-            return async ({ update }) => {
+            try {
+              await submit();
+              if (requestPasswordReset.result?.redirectTo) {
+                goto(requestPasswordReset.result.redirectTo);
+              }
+            } catch (error) {
+              console.error('Request password reset error:', error);
+            } finally {
               loading = false;
-              await update();
-            };
-          }}
+            }
+          })}
           class="space-y-6"
         >
           <div>
             <Label for="email" class="mb-2">Email Address</Label>
             <Input
               id="email"
-              name="email"
+              field={requestPasswordReset.fields.email}
               type="email"
               placeholder="your@email.com"
-              value={form?.email || ''}
-              required
               class="block w-full text-lg"
               autocomplete="email"
             />
@@ -145,28 +164,32 @@
         </div>
       {:else if currentStep === 'reset'}
         <form
-          method="POST"
-          action="?/reset"
-          use:enhance={() => {
+          novalidate
+          {...resetPasswordForm.enhance(async ({ submit }) => {
             loading = true;
-            return async ({ update }) => {
+            try {
+              await submit();
+              if (resetPasswordForm.result?.redirectTo) {
+                goto(resetPasswordForm.result.redirectTo);
+              }
+            } catch (error) {
+              console.error('Reset password error:', error);
+            } finally {
               loading = false;
-              await update();
-            };
-          }}
+            }
+          })}
           class="space-y-6"
         >
-          <input type="hidden" name="token" value={currentToken} />
+          <input type="hidden" name="token" value={currentToken || ''} />
           <div>
             <Label for="password" class="mb-2">New Password</Label>
             <div class="relative">
               <Input
                 id="password"
                 name="password"
+                field={resetPasswordForm.fields.password}
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                required
-                bind:value={password}
                 class="block w-full pr-10 text-lg"
                 autocomplete="new-password"
               />
@@ -190,11 +213,9 @@
             <div class="relative">
               <Input
                 id="confirmPassword"
-                name="confirmPassword"
+                field={resetPasswordForm.fields.confirmPassword}
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                required
-                bind:value={confirmPassword}
                 class="block w-full pr-10 text-lg"
                 autocomplete="new-password"
               />
