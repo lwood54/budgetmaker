@@ -5,8 +5,6 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import ListItem from '$lib/components/ListItem.svelte';
-  import { logout, getCurrentUser } from '$lib/api/auth.remote';
-  import { goto } from '$app/navigation';
   import {
     AdjustmentsHorizontalOutline,
     ArrowLeftToBracketOutline,
@@ -22,10 +20,7 @@
   const txtActiveClass = 'text-primary-900 font-bold dark:text-primary-200';
   const txtNonActiveClass = 'text-primary-700 dark:text-primary-400';
 
-  let { children } = $props();
-  
-  const currentUser = getCurrentUser();
-  const user = $derived(currentUser.current);
+  let { children, data } = $props();
   let activeUrl = $derived(page.url.pathname);
   let hidden = $state(false);
   let screenWidth = $state(0);
@@ -97,7 +92,7 @@
             nonActiveClass={txtNonActiveClass}
             href={Route.calculators}>Calculators</NavLi
           >
-          {#if user}
+          {#if data.user}
             <NavLi
               activeClass={txtActiveClass}
               nonActiveClass={txtNonActiveClass}
@@ -108,19 +103,7 @@
               nonActiveClass={txtNonActiveClass}
               href={Route.paydown}>Paydown</NavLi
             >
-            <form
-              {...logout.enhance(async ({ submit }) => {
-                try {
-                  await submit();
-                  if (logout.result?.redirectTo) {
-                    goto(logout.result.redirectTo);
-                  }
-                } catch (error) {
-                  console.error('Logout error:', error);
-                  goto('/login');
-                }
-              })}
-            >
+            <form id="nav-logout" method="post" action={Route.logout}>
               <Button outline class="border-none" type="submit" data-sveltekit-preload-data="off"
                 >Logout</Button
               >

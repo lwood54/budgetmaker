@@ -23,7 +23,7 @@
   <div class="mx-auto mb-6 w-full">
     <Select
       size="lg"
-      classes={{ select: 'h-12' }}
+      selectClass="h-12"
       bind:value={selectedCalculator}
       class="w-full text-lg md:w-1/3"
     >

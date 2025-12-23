@@ -33,15 +33,10 @@
   // HTML input has size as number, but Flowbite Input expects size as "sm" | "md" | "lg" | undefined
   // HTML input has color as string, but Flowbite Input expects color as specific color values
   // HTMLInputAttributes can have null, but Flowbite Input doesn't accept null
-  // Also exclude 'value' and 'required' to handle them separately (we use form validation instead of HTML5)
+  // Also exclude 'value' to handle it separately with initialValue support
   const cleanedAttrs = Object.fromEntries(
     Object.entries(fieldAttrs).filter(
-      ([key, value]) =>
-        key !== 'size' &&
-        key !== 'color' &&
-        key !== 'value' &&
-        key !== 'required' &&
-        value !== null,
+      ([key, value]) => key !== 'size' && key !== 'color' && key !== 'value' && value !== null,
     ),
   );
 

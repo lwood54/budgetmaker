@@ -1,28 +1,16 @@
 <script lang="ts">
-  import { Card, Button, Label, Helper, P, A, Spinner } from 'flowbite-svelte';
+  import { Card, Button, Label, Input, Helper, P, A, Alert, Spinner } from 'flowbite-svelte';
+  import { enhance } from '$app/forms';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import PasswordStrength from '$lib/components/PasswordStrength.svelte';
-  import { signup, getSignupPageData } from '$lib/api/auth.remote';
-  import { goto } from '$app/navigation';
-  import Input from '$lib/components/Input.svelte';
 
-  const pageData = getSignupPageData();
-
-  // Handle redirect if user is already logged in
-  $effect(() => {
-    const data = pageData.current;
-    if (data?.redirectTo) {
-      goto(data.redirectTo);
-    }
-  });
+  let { form } = $props();
 
   let showPassword = $state(false);
   let showConfirmPassword = $state(false);
   let loading = $state(false);
-
-  // Get password value from form field for PasswordStrength component
-  const password = $derived(signup.fields.password.value || '');
-  const confirmPassword = $derived(signup.fields.confirmPassword.value || '');
+  let password = $state('');
+  let confirmPassword = $state('');
 </script>
 
 <svelte:head>
@@ -41,21 +29,23 @@
 
   <div class="flex justify-center px-6">
     <Card class="px-4 py-8 shadow sm:min-w-full sm:rounded-lg sm:px-10 md:min-w-[600px]">
+      {#if form?.error}
+        <Alert color="red" class="mb-6">
+          <span class="font-medium">Error:</span>
+          {form.error}
+        </Alert>
+      {/if}
+
       <form
-        novalidate
-        {...signup.enhance(async ({ submit }) => {
+        method="POST"
+        action="?/signup"
+        use:enhance={() => {
           loading = true;
-          try {
-            await submit();
-            if (signup.result?.redirectTo) {
-              goto(signup.result.redirectTo);
-            }
-          } catch (error) {
-            console.error('Signup error:', error);
-          } finally {
+          return async ({ update }) => {
             loading = false;
-          }
-        })}
+            await update();
+          };
+        }}
         class="space-y-6"
       >
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -63,9 +53,10 @@
             <Label for="firstName" class="mb-2">First Name</Label>
             <Input
               id="firstName"
-              field={signup.fields.firstName}
+              name="firstName"
               type="text"
               placeholder="First name"
+              value={form?.firstName || ''}
               class="block w-full text-lg"
             />
           </div>
@@ -73,9 +64,10 @@
             <Label for="lastName" class="mb-2">Last Name</Label>
             <Input
               id="lastName"
-              field={signup.fields.lastName}
+              name="lastName"
               type="text"
               placeholder="Last name"
+              value={form?.lastName || ''}
               class="block w-full text-lg"
             />
           </div>
@@ -85,9 +77,11 @@
           <Label for="email" class="mb-2">Email Address *</Label>
           <Input
             id="email"
-            field={signup.fields.email}
+            name="email"
             type="email"
             placeholder="your@email.com"
+            value={form?.email || ''}
+            required
             class="block w-full text-lg"
           />
           <Helper class="mt-2 text-sm text-gray-500">
@@ -101,9 +95,10 @@
             <Input
               id="password"
               name="password"
-              field={signup.fields.password}
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
+              required
+              bind:value={password}
               class="block w-full pr-10 text-lg"
             />
             <button
@@ -126,9 +121,11 @@
           <div class="relative">
             <Input
               id="confirmPassword"
-              field={signup.fields.confirmPassword}
+              name="confirmPassword"
               type={showConfirmPassword ? 'text' : 'password'}
               placeholder="••••••••"
+              required
+              bind:value={confirmPassword}
               class="block w-full pr-10 text-lg"
             />
             <button
