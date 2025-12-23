@@ -46,6 +46,10 @@ function isPublicRoute(pathname: string): boolean {
   );
 }
 
+function isAdminRoute(pathname: string): boolean {
+  return pathname.startsWith('/admin/');
+}
+
 const appConfig: Handle = async ({ event, resolve }) => {
   event.locals.baseUrl = event.url.origin;
   return await resolve(event);
@@ -133,6 +137,10 @@ const authenticate: Handle = async ({ event, resolve }) => {
   } catch (error) {
     clearAuthCookies(event.cookies);
     throw redirect(302, Route.login);
+  }
+
+  if (isAdminRoute(event.url.pathname) && !event.locals.user?.isAdmin) {
+    throw redirect(302, Route.dashboard);
   }
 
   const response = await resolve(event);

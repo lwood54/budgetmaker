@@ -1,21 +1,10 @@
 <script lang="ts">
-  import { Card, Button, Label, P, A, Alert, Spinner } from 'flowbite-svelte';
+  import { Card, Button, Label, Input, P, A, Alert, Spinner } from 'flowbite-svelte';
+  import { enhance } from '$app/forms';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import { Route } from '$lib/constants/routes';
-  import { login, getLoginPageData } from '$lib/api/auth.remote';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/state';
-  import Input from '$lib/components/Input.svelte';
 
-  const pageData = getLoginPageData();
-
-  // Handle redirect if user is already logged in
-  $effect(() => {
-    const data = pageData.current;
-    if (data?.redirectTo) {
-      goto(data.redirectTo);
-    }
-  });
+  let { form, data } = $props();
 
   let showPassword = $state(false);
   let loading = $state(false);
@@ -35,14 +24,21 @@
 
   <div class="flex justify-center px-6">
     <Card class="max-w-[600px] px-4 py-8 shadow  sm:rounded-lg sm:px-10">
-      {#if pageData.current?.message}
+      {#if data?.message}
         <Alert color="green" class="mb-6">
           <span class="font-medium">Success:</span>
-          {pageData.current.message}
+          {data.message}
         </Alert>
       {/if}
 
-      {#if login.fields.email.issues()?.[0]?.message?.includes('verify your email')}
+      {#if form?.error}
+        <Alert color="red" class="mb-6">
+          <span class="font-medium">Error:</span>
+          {form.error}
+        </Alert>
+      {/if}
+
+      {#if form?.needsVerification}
         <Alert color="yellow" class="mb-6">
           <span class="font-medium">Email verification required:</span>
           Please check your email and click the verification link before logging in.
@@ -55,27 +51,17 @@
       {/if}
 
       <form
-        novalidate
-        {...login.enhance(async ({ submit }) => {
+        method="POST"
+        action="?/login"
+        use:enhance={() => {
           loading = true;
-          try {
-            await submit();
-            if (login.result?.redirectTo) {
-              goto(login.result.redirectTo);
-            }
-          } catch (error) {
-            console.error('Login error:', error);
-          } finally {
+          return async ({ update }) => {
             loading = false;
-          }
-        })}
+            await update();
+          };
+        }}
         class="space-y-6"
       >
-        <input
-          type="hidden"
-          name="redirectTo"
-          value={page.url.searchParams.get('redirectTo') || Route.home}
-        />
         <div>
           <Label for="email" class="mb-2">Email Address</Label>
           <Input
@@ -83,7 +69,8 @@
             name="email"
             type="email"
             placeholder="your@email.com"
-            field={login.fields.email}
+            value={form?.email || ''}
+            required
             class="block w-full text-lg"
             autocomplete="email"
           />
@@ -95,9 +82,9 @@
             <Input
               id="password"
               name="password"
-              field={login.fields.password}
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
+              required
               class="block w-full pr-10 text-lg"
               autocomplete="current-password"
             />
