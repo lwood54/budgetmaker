@@ -4,7 +4,38 @@
 
   let { password } = $props();
 
-  let passwordStrength = $derived(checkPasswordStrength(password));
+  // NOTE: Ensure password is always a string - handle form field objects and undefined
+  // During SSR, form fields might not be initialized, so we need to safely extract the string value
+  const passwordString = $derived.by(() => {
+    // If it's already a string, use it
+    if (typeof password === 'string') {
+      return password;
+    }
+    // If it's an object with a value property (form field object)
+    if (password && typeof password === 'object') {
+      if ('value' in password) {
+        const value = password.value;
+        // If value is a string, use it; otherwise try to convert or default to empty string
+        if (typeof value === 'string') {
+          return value;
+        }
+        // If value is undefined/null, return empty string
+        if (value === null || value === undefined) {
+          return '';
+        }
+        // Try to convert to string as last resort
+        try {
+          return String(value);
+        } catch {
+          return '';
+        }
+      }
+    }
+    // Default to empty string for any other case
+    return '';
+  });
+
+  let passwordStrength = $derived(checkPasswordStrength(passwordString));
 </script>
 
 <div class="mt-2">

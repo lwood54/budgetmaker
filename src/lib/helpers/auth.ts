@@ -8,12 +8,15 @@ export const createHeaders = (additionalHeaders: Record<string, string> = {}) =>
 };
 
 export const checkPasswordStrength = (password: string) => {
+  // NOTE: Ensure password is always a string - handle undefined/null during SSR
+  const passwordStr = typeof password === 'string' ? password : '';
+
   const strength = {
-    hasUpperCase: /[A-Z]/.test(password),
-    hasLowerCase: /[a-z]/.test(password),
-    hasNumbers: /\d/.test(password),
-    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    minLength: password.length >= 8,
+    hasUpperCase: /[A-Z]/.test(passwordStr),
+    hasLowerCase: /[a-z]/.test(passwordStr),
+    hasNumbers: /\d/.test(passwordStr),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(passwordStr),
+    minLength: passwordStr.length >= 8,
   };
   const validCount = Object.values(strength).filter(Boolean).length;
 

@@ -1,20 +1,66 @@
 <script lang="ts">
-  import { Card, Button, Label, Input, P, A, Alert, Spinner } from 'flowbite-svelte';
-  import { enhance } from '$app/forms';
+  import { Card, Button, Label, P, A, Alert, Spinner } from 'flowbite-svelte';
+  import Input from '$lib/components/Input.svelte';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import { Route } from '$lib/constants/routes';
   import PasswordStrength from '$lib/components/PasswordStrength.svelte';
-
-  let { data, form } = $props();
+  import {
+    getPasswordResetData,
+    requestPasswordResetForm,
+    resetPasswordForm,
+    getCurrentUser,
+  } from '$lib/api/auth.remote';
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
 
   let showPassword = $state(false);
   let showConfirmPassword = $state(false);
   let loading = $state(false);
-  let password = $state('');
-  let confirmPassword = $state('');
 
-  let currentStep = $derived(form?.step || data?.step || 'request');
-  let currentToken = $derived(form?.token || data?.token);
+  // NOTE: Get reset data from query - handles token validation and step management
+  const resetData = $derived(
+    await getPasswordResetData({
+      token: page.url.searchParams.get('token') || undefined,
+      step: page.url.searchParams.get('step') || undefined,
+    }),
+  );
+  const currentStep = $derived(resetData?.step || 'request');
+  const currentToken = $derived(resetData?.token || null);
+  const resetError = $derived(resetData?.error || null);
+
+  // NOTE: Make password value reactive so PasswordStrength updates as user types
+  // Use field.as('text') to get the value, similar to how Input.svelte does it
+  const resetPasswordValue = $derived.by(() => {
+    if (currentStep !== 'reset') return '';
+    try {
+      const attrs = resetPasswordForm.fields.password.as('text');
+      return (attrs?.value as string) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // NOTE: Make confirm password value reactive for button disabled state
+  const resetConfirmPasswordValue = $derived.by(() => {
+    if (currentStep !== 'reset') return '';
+    try {
+      const attrs = resetPasswordForm.fields.confirmPassword.as('text');
+      return (attrs?.value as string) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // NOTE: Only check auth status once on mount, not reactively
+  // Using onMount prevents premature redirects during navigation
+  onMount(async () => {
+    const userQuery = getCurrentUser();
+    const currentUser = await userQuery;
+    if (currentUser) {
+      goto(Route.dashboard, { replaceState: true });
+    }
+  });
 </script>
 
 <svelte:head>
@@ -47,35 +93,36 @@
 
   <div class="flex justify-center px-6">
     <Card class="min-w-full px-4 py-8 shadow sm:min-w-[500px] sm:rounded-lg sm:px-10">
-      {#if form?.error || data?.error}
+      {#if resetError}
         <Alert color="red" class="mb-6">
           <span class="font-medium">Error:</span>
-          {form?.error || data?.error}
+          {resetError}
         </Alert>
       {/if}
 
       {#if currentStep === 'request'}
         <form
-          method="POST"
-          action="?/request"
-          use:enhance={() => {
+          novalidate
+          {...requestPasswordResetForm.enhance(async ({ submit }) => {
             loading = true;
-            return async ({ update }) => {
+            try {
+              await submit();
+              // NOTE: Redirect is handled by the remote function throwing redirect()
+            } catch (error) {
+              console.error('Password reset request error:', error);
+            } finally {
               loading = false;
-              await update();
-            };
-          }}
+            }
+          })}
           class="space-y-6"
         >
           <div>
             <Label for="email" class="mb-2">Email Address</Label>
             <Input
               id="email"
-              name="email"
+              field={requestPasswordResetForm.fields.email}
               type="email"
               placeholder="your@email.com"
-              value={form?.email || ''}
-              required
               class="block w-full text-lg"
               autocomplete="email"
             />
@@ -145,28 +192,29 @@
         </div>
       {:else if currentStep === 'reset'}
         <form
-          method="POST"
-          action="?/reset"
-          use:enhance={() => {
+          novalidate
+          {...resetPasswordForm.enhance(async ({ submit }) => {
             loading = true;
-            return async ({ update }) => {
+            try {
+              await submit();
+              // NOTE: Redirect is handled by the remote function throwing redirect()
+            } catch (error) {
+              console.error('Password reset error:', error);
+            } finally {
               loading = false;
-              await update();
-            };
-          }}
+            }
+          })}
           class="space-y-6"
         >
-          <input type="hidden" name="token" value={currentToken} />
+          <input type="hidden" name="token" value={currentToken || ''} />
           <div>
             <Label for="password" class="mb-2">New Password</Label>
             <div class="relative">
               <Input
                 id="password"
-                name="password"
+                field={resetPasswordForm.fields.password}
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                required
-                bind:value={password}
                 class="block w-full pr-10 text-lg"
                 autocomplete="new-password"
               />
@@ -190,11 +238,9 @@
             <div class="relative">
               <Input
                 id="confirmPassword"
-                name="confirmPassword"
+                field={resetPasswordForm.fields.confirmPassword}
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                required
-                bind:value={confirmPassword}
                 class="block w-full pr-10 text-lg"
                 autocomplete="new-password"
               />
@@ -212,14 +258,17 @@
               </button>
             </div>
           </div>
-          <PasswordStrength {password} />
+          <PasswordStrength password={resetPasswordValue} />
 
           <div>
             <Button
               size="lg"
               type="submit"
               class="flex w-full justify-center px-6 py-3"
-              disabled={loading || password !== confirmPassword}
+              disabled={loading ||
+                !resetPasswordValue ||
+                !resetConfirmPasswordValue ||
+                resetPasswordValue !== resetConfirmPasswordValue}
             >
               {#if loading}
                 <Spinner class="mr-3" size="4" color="gray" />

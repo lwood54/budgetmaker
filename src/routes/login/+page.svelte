@@ -1,13 +1,31 @@
 <script lang="ts">
-  import { Card, Button, Label, Input, P, A, Alert, Spinner } from 'flowbite-svelte';
-  import { enhance } from '$app/forms';
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { Card, Button, Label, P, A } from 'flowbite-svelte';
   import { EyeOutline, EyeSlashOutline } from 'flowbite-svelte-icons';
   import { Route } from '$lib/constants/routes';
-
-  let { form, data } = $props();
+  import { getCurrentUser, login } from '$lib/api/auth.remote';
+  import { goto } from '$app/navigation';
+  import { Alert, Spinner } from 'flowbite-svelte';
+  import Input from '$lib/components/Input.svelte';
 
   let showPassword = $state(false);
   let loading = $state(false);
+
+  const message = $derived(page.url.searchParams.get('message'));
+  const redirectTo = $derived(page.url.searchParams.get('redirectTo') || Route.home);
+
+  onMount(async () => {
+    try {
+      const userQuery = getCurrentUser();
+      const currentUser = await userQuery;
+      if (currentUser) {
+        goto(redirectTo, { replaceState: true });
+      }
+    } catch (error) {
+      console.error('[login/+page.svelte] Error in onMount:', error);
+    }
+  });
 </script>
 
 <svelte:head>
@@ -23,22 +41,15 @@
   </div>
 
   <div class="flex justify-center px-6">
-    <Card class="max-w-[600px] px-4 py-8 shadow  sm:rounded-lg sm:px-10">
-      {#if data?.message}
+    <Card class="max-w-[600px] px-4 py-8 shadow sm:rounded-lg sm:px-10">
+      {#if message}
         <Alert color="green" class="mb-6">
           <span class="font-medium">Success:</span>
-          {data.message}
+          {message}
         </Alert>
       {/if}
 
-      {#if form?.error}
-        <Alert color="red" class="mb-6">
-          <span class="font-medium">Error:</span>
-          {form.error}
-        </Alert>
-      {/if}
-
-      {#if form?.needsVerification}
+      {#if (login.result as any)?.needsVerification}
         <Alert color="yellow" class="mb-6">
           <span class="font-medium">Email verification required:</span>
           Please check your email and click the verification link before logging in.
@@ -51,26 +62,48 @@
       {/if}
 
       <form
-        method="POST"
-        action="?/login"
-        use:enhance={() => {
+        novalidate
+        {...login.enhance(async ({ submit }) => {
           loading = true;
-          return async ({ update }) => {
+          try {
+            await submit();
+            // NOTE: If submit succeeds, redirect is handled by the remote function throwing redirect()
+            // SvelteKit automatically handles redirect objects
+          } catch (error) {
+            // NOTE: Re-throw redirects - redirect() throws a Redirect object with status and location
+            // SvelteKit needs these to propagate to handle navigation
+            if (
+              error &&
+              typeof error === 'object' &&
+              'status' in error &&
+              'location' in error &&
+              typeof error.status === 'number' &&
+              error.status >= 300 &&
+              error.status < 400
+            ) {
+              throw error; // Re-throw redirect - SvelteKit will handle it
+            }
+            // NOTE: Validation errors are already displayed via Input component's field.issues()
+            // Only log unexpected errors (not 422 validation errors)
+            if (
+              !(error && typeof error === 'object' && 'status' in error && error.status === 422)
+            ) {
+              console.error('[login/+page.svelte] Unexpected error:', error);
+            }
+          } finally {
             loading = false;
-            await update();
-          };
-        }}
+          }
+        })}
         class="space-y-6"
       >
+        <input type="hidden" name="redirectTo" value={redirectTo} />
         <div>
           <Label for="email" class="mb-2">Email Address</Label>
           <Input
             id="email"
-            name="email"
+            field={login.fields.email}
             type="email"
             placeholder="your@email.com"
-            value={form?.email || ''}
-            required
             class="block w-full text-lg"
             autocomplete="email"
           />
@@ -81,10 +114,9 @@
           <div class="relative">
             <Input
               id="password"
-              name="password"
+              field={login.fields.password}
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
-              required
               class="block w-full pr-10 text-lg"
               autocomplete="current-password"
             />

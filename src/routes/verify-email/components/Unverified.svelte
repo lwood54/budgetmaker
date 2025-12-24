@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
   import CircleWithWarning from '$lib/assets/SvgComponents/combined/CircleWithWarning.svelte';
   import { Spinner } from 'flowbite-svelte';
+  import { resendVerification } from '$lib/api/auth.remote';
+  import Input from '$lib/components/Input.svelte';
 
   type _Props = {
     email?: string | null;
@@ -46,17 +47,27 @@
 
   {#if email}
     <form
-      method="post"
-      action="?/resend"
-      use:enhance={() => {
+      novalidate
+      {...resendVerification.enhance(async ({ submit }) => {
         isResending = true;
-        return async ({ update }) => {
-          await update();
+        try {
+          await submit();
+        } finally {
           isResending = false;
-        };
-      }}
+        }
+      })}
     >
-      <input type="hidden" name="email" value={email} />
+      <div class="mb-4">
+        <Input
+          id="email"
+          field={resendVerification.fields.email}
+          type="email"
+          placeholder="your@email.com"
+          class="block w-full text-lg"
+          autocomplete="email"
+          initialValue={email || ''}
+        />
+      </div>
 
       <button
         type="submit"

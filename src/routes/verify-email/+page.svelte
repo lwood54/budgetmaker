@@ -1,8 +1,17 @@
 <script lang="ts">
   import Verified from './components/Verified.svelte';
   import Unverified from './components/Unverified.svelte';
+  import { getVerifyEmailData, resendVerification } from '$lib/api/auth.remote';
+  import { page } from '$app/state';
 
-  let { data, form } = $props();
+  // NOTE: Get verify email data from query - handles token verification and auto-login
+  const verifyData = $derived(
+    await getVerifyEmailData({
+      token: page.url.searchParams.get('token') || undefined,
+      email: page.url.searchParams.get('email') || undefined,
+      error: page.url.searchParams.get('error') || undefined,
+    }),
+  );
 </script>
 
 <svelte:head>
@@ -12,7 +21,7 @@
 <div class="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
   <div class="sm:mx-auto sm:w-full sm:max-w-md">
     <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-      {#if data.verified}
+      {#if verifyData?.verified}
         Email Verified!
       {:else}
         Verify Your Email
@@ -22,20 +31,20 @@
 
   <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
     <div class="bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
-      {#if data.verified}
+      {#if verifyData?.verified}
         <Verified
-          firstName={data.firstName}
-          email={data.email}
-          isAdmin={data.isAdmin || false}
-          userId={data.userId}
-          autoLoginFailed={data.autoLoginFailed || false}
+          firstName={verifyData.firstName}
+          email={verifyData.email}
+          isAdmin={verifyData.isAdmin || false}
+          userId={verifyData.userId}
+          autoLoginFailed={verifyData.autoLoginFailed || false}
         />
       {:else}
         <Unverified
-          email={data.email}
-          error={data.error || form?.error}
-          isSuccess={Boolean(form?.success)}
-          message={form?.message}
+          email={verifyData?.email}
+          error={verifyData?.error}
+          isSuccess={Boolean(resendVerification.result?.success)}
+          message={resendVerification.result?.message}
         />
       {/if}
     </div>

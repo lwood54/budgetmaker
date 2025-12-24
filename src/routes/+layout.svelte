@@ -21,6 +21,16 @@
   const txtNonActiveClass = 'text-primary-700 dark:text-primary-400';
 
   let { children, data } = $props();
+
+  // NOTE: Safe access to user data - wraps in derived.by() to avoid blocking reactive dependencies
+  const user = $derived.by(() => {
+    try {
+      return data?.user ?? null;
+    } catch (error) {
+      console.error('[+layout.svelte] Error accessing data.user:', error);
+      return null;
+    }
+  });
   let activeUrl = $derived(page.url.pathname);
   let hidden = $state(false);
   let screenWidth = $state(0);
@@ -47,7 +57,6 @@
     window?.addEventListener('resize', updateScreenWidth);
     window?.addEventListener('scroll', handleScroll);
     const themeMode = localStorage.getItem('THEME_PREFERENCE_KEY');
-    // isDarkMode = themeMode !== 'light';
     setIsDarkMode(themeMode !== 'light');
 
     return () => {
@@ -56,6 +65,13 @@
     };
   });
 
+  $effect(() => {
+    if (screenWidth < 768) {
+      hidden = true;
+    } else {
+      hidden = false;
+    }
+  });
   $effect(() => {
     if (screenWidth < 768) {
       hidden = true;
@@ -92,7 +108,7 @@
             nonActiveClass={txtNonActiveClass}
             href={Route.calculators}>Calculators</NavLi
           >
-          {#if data.user}
+          {#if user}
             <NavLi
               activeClass={txtActiveClass}
               nonActiveClass={txtNonActiveClass}
@@ -103,11 +119,9 @@
               nonActiveClass={txtNonActiveClass}
               href={Route.paydown}>Paydown</NavLi
             >
-            <form id="nav-logout" method="post" action={Route.logout}>
-              <Button outline class="border-none" type="submit" data-sveltekit-preload-data="off"
-                >Logout</Button
-              >
-            </form>
+            <a href={Route.logout}>
+              <Button outline class="border-none">Logout</Button>
+            </a>
           {:else}
             <NavLi
               activeClass={txtActiveClass}
@@ -150,7 +164,7 @@
       <AdjustmentsHorizontalOutline class="text-primary-700 dark:text-primary-400" size="lg" />
       <P class="text-primary-700 dark:text-primary-400">Calculators</P>
     </ListItem>
-    {#if data.user}
+    {#if user}
       <ListItem onClick={closeDrawer} href={Route.budgets}>
         <FileChartBarOutline class="text-primary-700 dark:text-primary-400" size="lg" />
         <P class="text-primary-700 dark:text-primary-400">Budgets</P>

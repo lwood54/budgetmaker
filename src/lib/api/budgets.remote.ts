@@ -15,10 +15,28 @@ export const getBudgets = query(async () => {
   const event = getRequestEvent();
 
   if (!event.locals.user?.userId) {
-    return [];
+    return { data: [], error: null };
   }
 
-  return await getBudgetsByUserId(event.locals.db, event.locals.user.userId);
+  try {
+    const data = await getBudgetsByUserId(event.locals.db, event.locals.user.userId);
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in getBudgets query:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    // Check if it's a database schema error
+    const isSchemaError =
+      errorMessage.includes('Failed query') ||
+      errorMessage.includes('no such column') ||
+      errorMessage.includes('syntax error');
+
+    return {
+      data: [],
+      error: isSchemaError
+        ? 'Database schema mismatch detected. [db migrations needed]'
+        : 'An error occurred while loading budgets. Please try again later.',
+    };
+  }
 });
 
 export const getBudget = query(z.string(), async (budgetId) => {
