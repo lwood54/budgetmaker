@@ -35,7 +35,7 @@
 
   // Initial load
   budgetsQuery.then((result) => {
-    budgets = result;
+    budgets = result?.data ?? [];
   });
 
   let currentStep = $state<DrawerStep>('select');
@@ -45,7 +45,8 @@
   // Load budgets when drawer opens or when navigating to steps that need them
   async function loadBudgets() {
     await budgetsQuery.refresh();
-    budgets = await budgetsQuery;
+    const result = await budgetsQuery;
+    budgets = result?.data ?? [];
   }
 
   // Load budgets when drawer opens and set initial step

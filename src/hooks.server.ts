@@ -33,6 +33,7 @@ const PUBLIC_ROUTES = [
   Route.verifyEmail,
   Route.about,
   Route.contact,
+  Route.calculators,
 ];
 
 // NOTE: helps check public api routes that will be used externally
@@ -72,7 +73,8 @@ const authenticate: Handle = async ({ event, resolve }) => {
         };
       }
     }
-    return await resolve(event);
+    const response = await resolve(event);
+    return response;
   }
 
   // Protected route - require authentication

@@ -3,28 +3,34 @@ import { budgets, categories, budgetItems } from '$lib/server/db/schema';
 import { desc, eq, inArray } from 'drizzle-orm';
 
 export const getBudgetsByUserId = async (db: DrizzleClient, userId: string) => {
-  const userBudgets = await db
-    .select()
-    .from(budgets)
-    .where(eq(budgets.userId, userId))
-    .orderBy(desc(budgets.createdAt));
+  try {
+    const userBudgets = await db
+      .select()
+      .from(budgets)
+      .where(eq(budgets.userId, userId))
+      .orderBy(desc(budgets.createdAt));
 
-  if (userBudgets.length === 0) {
-    return [];
+    if (userBudgets.length === 0) {
+      return [];
+    }
+
+    const budgetIds = userBudgets.map((b) => b.uuid);
+
+    // Fetch categories and budget items
+    const [budgetCategories, userBudgetItems] = await Promise.all([
+      db.select().from(categories).where(inArray(categories.budgetId, budgetIds)),
+      db.select().from(budgetItems).where(inArray(budgetItems.budgetId, budgetIds)),
+    ]);
+
+    return userBudgets.map((budget) => ({
+      ...budget,
+      categories: budgetCategories.filter((c) => c.budgetId === budget.uuid),
+      budgetItems: userBudgetItems.filter((bi) => bi.budgetId === budget.uuid),
+    }));
+  } catch (error) {
+    console.error('Error fetching budgets:', error);
+    throw error;
   }
-
-  const budgetIds = userBudgets.map((b) => b.uuid);
-
-  const [budgetCategories, userBudgetItems] = await Promise.all([
-    db.select().from(categories).where(inArray(categories.budgetId, budgetIds)),
-    db.select().from(budgetItems).where(inArray(budgetItems.budgetId, budgetIds)),
-  ]);
-
-  return userBudgets.map((budget) => ({
-    ...budget,
-    categories: budgetCategories.filter((c) => c.budgetId === budget.uuid),
-    budgetItems: userBudgetItems.filter((bi) => bi.budgetId === budget.uuid),
-  }));
 };
 
 export const getBudgetById = async (db: DrizzleClient, budgetId: string) => {

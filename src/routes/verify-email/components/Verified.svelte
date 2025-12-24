@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
   import CircleWithCheck from '$lib/assets/SvgComponents/combined/CircleWithCheck.svelte';
   import { P } from 'flowbite-svelte';
+  import { manualLoginAfterVerification } from '$lib/api/auth.remote';
 
   type _Props = {
     firstName?: string | null;
@@ -29,10 +29,13 @@
       <p class="text-sm text-yellow-600">Automatic login failed. Please click below to continue.</p>
     </div>
 
-    <form method="post" action="?/login" use:enhance>
-      <input type="hidden" name="userId" value={userId} />
-      <input type="hidden" name="email" value={email} />
-      <input type="hidden" name="isAdmin" value={isAdmin} />
+    <form
+      {...manualLoginAfterVerification.enhance(async ({ submit }) => {
+        await submit();
+      })}
+    >
+      <input type="hidden" name="userId" value={userId || ''} />
+      <input type="hidden" name="email" value={email || ''} />
 
       <button
         type="submit"

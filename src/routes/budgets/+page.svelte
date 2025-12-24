@@ -12,8 +12,11 @@
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { formatCurrency } from '$lib/utils/money';
   import { onMount } from 'svelte';
+  import { Alert } from 'flowbite-svelte';
 
-  const budgets = $derived(await getBudgets());
+  const budgetsResult = $derived(await getBudgets());
+  const budgets = $derived(budgetsResult?.data ?? []);
+  const budgetsError = $derived(budgetsResult?.error ?? null);
 
   let deleteModalOpen = $state(false);
   let budgetToDelete = $state<BudgetWithRelations | null>(null);
@@ -209,7 +212,13 @@
   </header>
 
   <main class="mx-auto max-w-[1244px] px-4 py-4">
-    {#if budgets.length === 0}
+    {#if budgetsError}
+      <Alert color="red" class="mb-6">
+        <span class="font-medium">Error loading budgets:</span>
+        {budgetsError}
+      </Alert>
+    {/if}
+    {#if budgets.length === 0 && !budgetsError}
       <div class="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div class="bg-primary-100 dark:bg-primary-900/30 mb-6 rounded-full p-6">
           <PlusOutline class="text-primary-600 dark:text-primary-400 h-12 w-12" />
