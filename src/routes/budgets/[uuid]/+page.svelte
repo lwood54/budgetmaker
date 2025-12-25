@@ -376,21 +376,21 @@
           </div>
         </div>
       </div>
-      {#if budget.categories.length > 0}
-        <div class="mb-6">
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Categories</P>
-            <div class="flex items-center gap-2">
-              <Button
-                color="primary"
-                size="sm"
-                pill
-                class="h-8 w-8 p-0"
-                onclick={handleAddCategory}
-                aria-label="Add category"
-              >
-                <PlusOutline class="h-4 w-4" />
-              </Button>
+      <div class="mb-6">
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Categories</P>
+          <div class="flex items-center gap-2">
+            <Button
+              color="primary"
+              size="sm"
+              pill
+              class="h-8 w-8 p-0"
+              onclick={handleAddCategory}
+              aria-label="Add category"
+            >
+              <PlusOutline class="h-4 w-4" />
+            </Button>
+            {#if budget.categories.length > 0}
               <Button
                 color="alternative"
                 size="sm"
@@ -403,9 +403,11 @@
                   class="text-primary-900 dark:text-primary-200 h-4 w-4"
                 />
               </Button>
-            </div>
+            {/if}
           </div>
+        </div>
 
+        {#if budget.categories.length > 0}
           {#if showCategoryFilters}
             <div
               class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
@@ -536,43 +538,52 @@
               </div>
             {/if}
           </div>
-        </div>
-      {/if}
-      <div>
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">
-            Purchases
-            {#if filteredPurchases().length !== budget.budgetItems.length}
-              <span class="ml-2 text-base font-normal text-neutral-500 dark:text-neutral-400">
-                ({filteredPurchases().length} of {budget.budgetItems.length})
-              </span>
-            {/if}
-          </P>
-          <div class="flex items-center gap-2">
-            <Button
-              color="primary"
-              size="sm"
-              pill
-              class="h-8 w-8 p-0"
-              onclick={handleAddItem}
-              aria-label="Add purchase"
-            >
-              <PlusOutline class="h-4 w-4" />
-            </Button>
-            <Button
-              color="alternative"
-              size="sm"
-              outline
-              class="border-none p-2"
-              onclick={() => (showFilters = !showFilters)}
-              aria-label="Toggle filters"
-            >
-              <AdjustmentsHorizontalOutline
-                class="text-primary-900 dark:text-primary-200 h-4 w-4"
-              />
-            </Button>
+        {:else}
+          <div
+            class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+          >
+            <P size="base" class="mb-4 text-neutral-500 dark:text-neutral-400">
+              No categories yet. Create your first category to get started.
+            </P>
           </div>
-        </div>
+        {/if}
+      </div>
+      {#if budget.categories.length > 0}
+        <div>
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">
+              Purchases
+              {#if filteredPurchases().length !== budget.budgetItems.length}
+                <span class="ml-2 text-base font-normal text-neutral-500 dark:text-neutral-400">
+                  ({filteredPurchases().length} of {budget.budgetItems.length})
+                </span>
+              {/if}
+            </P>
+            <div class="flex items-center gap-2">
+              <Button
+                color="primary"
+                size="sm"
+                pill
+                class="h-8 w-8 p-0"
+                onclick={handleAddItem}
+                aria-label="Add purchase"
+              >
+                <PlusOutline class="h-4 w-4" />
+              </Button>
+              <Button
+                color="alternative"
+                size="sm"
+                outline
+                class="border-none p-2"
+                onclick={() => (showFilters = !showFilters)}
+                aria-label="Toggle filters"
+              >
+                <AdjustmentsHorizontalOutline
+                  class="text-primary-900 dark:text-primary-200 h-4 w-4"
+                />
+              </Button>
+            </div>
+          </div>
         {#if showFilters}
           <div
             class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
@@ -705,7 +716,8 @@
             >
           </div>
         {/if}
-      </div>
+        </div>
+      {/if}
     </main>
   {:else}
     <main

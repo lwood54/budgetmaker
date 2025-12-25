@@ -12,11 +12,17 @@
   const categories = $derived(await getCategories(params.uuid));
 
   const categoryOptions = $derived(
-    categories.map((c) => ({
+    (categories ?? []).map((c) => ({
       value: c.uuid,
       name: c.name,
     })),
   );
+
+  const hasCategories = $derived((categories ?? []).length > 0);
+
+  function handleAddCategory() {
+    goto(Route.category_new(params.uuid));
+  }
 
   async function handleSuccess() {
     // Refresh the budget data
@@ -56,13 +62,27 @@
   <main class="px-4 py-4">
     <div class="mx-auto max-w-md">
       {#if budget}
-        <AddItem
-          {categoryOptions}
-          selectedBudgetId={params.uuid}
-          hideBudgetSelect={true}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
+        {#if hasCategories}
+          <AddItem
+            {categoryOptions}
+            selectedBudgetId={params.uuid}
+            hideBudgetSelect={true}
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+          />
+        {:else}
+          <div
+            class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+          >
+            <P size="xl" class="text-primary-900 dark:text-primary-200 mb-2 font-semibold">
+              No Categories Yet
+            </P>
+            <P size="base" class="mb-6 text-neutral-600 dark:text-neutral-400">
+              You need to create at least one category before you can record a purchase.
+            </P>
+            <Button color="primary" size="lg" onclick={handleAddCategory}>Create Category</Button>
+          </div>
+        {/if}
       {/if}
     </div>
   </main>
