@@ -23,6 +23,16 @@
     }
   });
 
+  // NOTE: Make confirm password value reactive for button disabled state
+  const confirmPasswordValue = $derived.by(() => {
+    try {
+      const attrs = signup.fields.confirmPassword.as('text');
+      return (attrs?.value as string) || '';
+    } catch {
+      return '';
+    }
+  });
+
   // NOTE: Only check auth status once on mount, not reactively
   // Using onMount prevents premature redirects during navigation
   onMount(async () => {
@@ -163,7 +173,9 @@
             type="submit"
             class="flex w-full justify-center px-6 py-3"
             disabled={loading ||
-              (signup.fields.password.value || '') !== (signup.fields.confirmPassword.value || '')}
+              !passwordValue ||
+              !confirmPasswordValue ||
+              passwordValue !== confirmPasswordValue}
           >
             {#if loading}
               <Spinner class="mr-3" size="4" color="gray" />

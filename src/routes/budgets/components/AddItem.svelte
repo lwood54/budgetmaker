@@ -155,6 +155,7 @@
     <Select
       id="item-category"
       name="categoryId"
+      field={addBudgetItem.fields.categoryId}
       size="lg"
       classes={{ select: 'h-12 truncate text-xl' }}
       items={categoryOptions}

@@ -57,12 +57,20 @@
   const getTotalInterest = () => {
     let totalInterest = 0;
     let balance = principalBalance;
+    const monthlyInterestRate = annualInterestRate / 100 / 12;
+
     for (let i = 0; i < monthsToPayOff; i++) {
-      totalInterest += balance * (annualInterestRate / 100 / 12);
-      balance -= monthlyPayment;
-      if (balance < 0) {
-        balance = 0;
-      }
+      // Calculate interest that accrues on current balance
+      const interest = balance * monthlyInterestRate;
+      totalInterest += interest;
+
+      // Principal is the portion of payment that reduces the balance
+      // Payment first covers interest, then remainder goes to principal
+      const principal = Math.min(monthlyPayment - interest, balance);
+
+      // Reduce balance by principal only (not full payment)
+      balance = Math.max(0, balance - principal);
+
       balances.push(balance);
     }
     return totalInterest;

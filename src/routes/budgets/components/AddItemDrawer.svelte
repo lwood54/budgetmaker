@@ -64,6 +64,7 @@
       loadBudgets();
 
       // If starting at category or item step, navigate to it
+      // This will also load categories if needed
       if (initialStep === 'category' || initialStep === 'item') {
         goToStep(initialStep);
       }
@@ -109,9 +110,16 @@
   }
 
   $effect(() => {
-    // Track itemBudgetId directly to ensure effect runs when it changes
-    const budgetId = itemBudgetId;
-    loadCategories(budgetId);
+    // Track both currentStep and itemBudgetId to ensure categories load when needed
+    // Only load categories if we're on the item step and the drawer is open
+    // This prevents loading categories when not needed and avoids race conditions
+    if (open && currentStep === 'item' && itemBudgetId) {
+      const budgetId = itemBudgetId;
+      loadCategories(budgetId);
+    } else if (!open || currentStep !== 'item') {
+      // Clear categories when not on item step or drawer is closed
+      categories = [];
+    }
   });
 
   const categoryOptions = $derived(
@@ -135,9 +143,14 @@
     }
 
     // Refresh categories when navigating to item step
-    if (step === 'item' && itemBudgetId) {
-      const cats = await getCategories(itemBudgetId);
-      categories = cats;
+    // Use the current itemBudgetId value to ensure we load for the correct budget
+    const budgetIdToLoad = itemBudgetId;
+    if (step === 'item' && budgetIdToLoad) {
+      const cats = await getCategories(budgetIdToLoad);
+      // Only update if budgetId hasn't changed (avoid race conditions)
+      if (itemBudgetId === budgetIdToLoad) {
+        categories = cats;
+      }
     }
   }
 
