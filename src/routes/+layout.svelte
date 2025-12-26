@@ -3,6 +3,7 @@
   import '../app.css';
   import { Route } from '$lib/constants/routes';
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import ListItem from '$lib/components/ListItem.svelte';
   import {
@@ -23,14 +24,8 @@
   let { children, data } = $props();
 
   // NOTE: Safe access to user data - wraps in derived.by() to avoid blocking reactive dependencies
-  const user = $derived.by(() => {
-    try {
-      return data?.user ?? null;
-    } catch (error) {
-      console.error('[+layout.svelte] Error accessing data.user:', error);
-      return null;
-    }
-  });
+  // Access data.user directly to ensure reactivity to data prop changes
+  const user = $derived.by(() => data?.user ?? null);
   let activeUrl = $derived(page.url.pathname);
   let hidden = $state(false);
   let screenWidth = $state(0);
@@ -83,6 +78,15 @@
   const closeDrawer = () => {
     open = false;
   };
+
+  const handleLogout = () => {
+    closeDrawer();
+    goto(Route.logout, { invalidateAll: true });
+  };
+
+  const handleLogoutNavbar = () => {
+    goto(Route.logout, { invalidateAll: true });
+  };
 </script>
 
 <div
@@ -119,9 +123,7 @@
               nonActiveClass={txtNonActiveClass}
               href={Route.paydown}>Paydown</NavLi
             >
-            <a href={Route.logout}>
-              <Button outline class="border-none">Logout</Button>
-            </a>
+            <Button outline class="border-none" onclick={handleLogoutNavbar}>Logout</Button>
           {:else}
             <NavLi
               activeClass={txtActiveClass}
@@ -173,7 +175,7 @@
         <ChartLineDownOutline class="text-primary-700 dark:text-primary-400" size="lg" />
         <P class="text-primary-700 dark:text-primary-400">Paydown</P>
       </ListItem>
-      <ListItem onClick={closeDrawer} href={Route.logout}>
+      <ListItem onClick={handleLogout}>
         <ArrowLeftToBracketOutline class="text-primary-700 dark:text-primary-400" size="lg" />
         <P class="text-primary-700 dark:text-primary-400">Logout</P>
       </ListItem>
