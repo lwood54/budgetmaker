@@ -30,8 +30,15 @@
   let incomeDrawerOpen = $state(false);
   let recurringExpensesDrawerOpen = $state(false);
 
-  // Track edited payments per month: Map<monthIndex, Map<debtId, editedPayment>>
-  let editedPayments = $state<Map<number, Map<string, number>>>(new Map());
+  // Track edited payments per month: { monthIndex: { debtId: editedPayment } }
+  let editedPayments = $state<Record<number, Record<string, number>>>({});
+
+  // Track original payments for comparison: { monthIndex: { debtId: originalPayment } }
+  let originalPayments = $state<Record<number, Record<string, number>>>({});
+
+  // Track all manually edited payments across all months (persists after updates)
+  // This is the source of truth for which fields have been manually edited
+  let manuallyEditedPayments = $state<Record<number, Record<string, number>>>({});
 
   $inspect('paymentPlan', paymentPlan);
 
@@ -165,39 +172,75 @@
       recurringExpenses,
     );
     // Clear edited payments when generating new plan
-    editedPayments = new Map();
+    editedPayments = {};
+    originalPayments = {};
+    manuallyEditedPayments = {};
   }
 
   function handlePaymentChange(monthIndex: number, debtId: string, value: string) {
-    const paymentValue = parseFloat(value) || 0;
+    // Treat empty string as 0
+    const paymentValue = value === '' ? 0 : parseFloat(value) || 0;
 
-    if (!editedPayments.has(monthIndex)) {
-      editedPayments.set(monthIndex, new Map());
+    // Store original value if not already stored
+    if (!originalPayments[monthIndex]) {
+      originalPayments[monthIndex] = {};
+      // Store all original payments for this month
+      const monthPlan = paymentPlan[monthIndex];
+      if (monthPlan) {
+        monthPlan.debtPayments.forEach((dp) => {
+          originalPayments[monthIndex][dp.debtId] = dp.payment;
+        });
+      }
+      // Trigger reactivity
+      originalPayments = { ...originalPayments };
     }
 
-    const monthEdits = editedPayments.get(monthIndex)!;
-    if (paymentValue > 0) {
-      monthEdits.set(debtId, paymentValue);
-    } else {
-      monthEdits.delete(debtId);
+    // Initialize month edits if needed and create new object to trigger reactivity
+    if (!editedPayments[monthIndex]) {
+      editedPayments[monthIndex] = {};
     }
+
+    // Store the edited value in a new object to ensure reactivity
+    editedPayments = {
+      ...editedPayments,
+      [monthIndex]: {
+        ...editedPayments[monthIndex],
+        [debtId]: paymentValue,
+      },
+    };
   }
 
   function handleUpdateMonth(monthIndex: number) {
-    if (!editedPayments.has(monthIndex)) return;
+    if (!editedPayments[monthIndex]) return;
 
-    const monthEdits = editedPayments.get(monthIndex)!;
-    if (monthEdits.size === 0) return;
+    const monthEdits = editedPayments[monthIndex];
+    if (Object.keys(monthEdits).length === 0) return;
 
-    // Convert Map to Map<string, number> for the function
+    // Save these edits to the persistent manually edited payments tracker
+    if (!manuallyEditedPayments[monthIndex]) {
+      manuallyEditedPayments[monthIndex] = {};
+    }
+    Object.entries(monthEdits).forEach(([debtId, payment]) => {
+      manuallyEditedPayments[monthIndex][debtId] = payment;
+    });
+    manuallyEditedPayments = { ...manuallyEditedPayments };
+
+    // Merge current edits with any previously saved edits for this month
+    // This ensures we preserve all edits for the month, not just the new ones
+    const allMonthEdits = {
+      ...(manuallyEditedPayments[monthIndex] || {}),
+      ...monthEdits, // Current edits override previous ones if there's a conflict
+    };
+
+    // Convert to Map<string, number> for the function
     const updatedPayments = new Map<string, number>();
-    monthEdits.forEach((value, key) => {
-      updatedPayments.set(key, value);
+    Object.entries(allMonthEdits).forEach(([debtId, payment]) => {
+      updatedPayments.set(debtId, payment);
     });
 
     const additionalSnowballAmount = parseFloat(additionalSnowball) || 0;
 
-    // Recalculate from this month forward
+    // Recalculate from this month forward, preserving manually edited payments in future months
     paymentPlan = recalculatePlanFromMonth(
       paymentPlan,
       monthIndex,
@@ -206,18 +249,53 @@
       incomes,
       recurringExpenses,
       additionalSnowballAmount,
+      manuallyEditedPayments,
     );
 
-    // Clear edits for this month after update
-    editedPayments.delete(monthIndex);
+    // Clear temporary edits for this month after update (but keep manuallyEditedPayments)
+    delete editedPayments[monthIndex];
+    delete originalPayments[monthIndex];
+    // Trigger reactivity
+    editedPayments = { ...editedPayments };
+    originalPayments = { ...originalPayments };
   }
 
   function getEditedPayment(monthIndex: number, debtId: string): number | undefined {
-    return editedPayments.get(monthIndex)?.get(debtId);
+    return editedPayments[monthIndex]?.[debtId];
+  }
+
+  function getDisplayPayment(monthIndex: number, debtId: string, currentPayment: number): number {
+    // If there's an edited value, use that
+    const edited = getEditedPayment(monthIndex, debtId);
+    if (edited !== undefined) {
+      return edited;
+    }
+    // If we've started editing this month, use the stored original value
+    // This ensures fields are independent until Update is clicked
+    if (originalPayments[monthIndex]?.[debtId] !== undefined) {
+      return originalPayments[monthIndex][debtId];
+    }
+    // Otherwise, use the current payment from the plan (for months not yet edited)
+    return currentPayment;
   }
 
   function hasEdits(monthIndex: number): boolean {
-    return editedPayments.has(monthIndex) && editedPayments.get(monthIndex)!.size > 0;
+    if (!editedPayments[monthIndex]) return false;
+
+    const monthEdits = editedPayments[monthIndex];
+    const originals = originalPayments[monthIndex];
+
+    if (!originals) return false;
+
+    // Check if any edited value differs from the original payment
+    for (const [debtId, editedValue] of Object.entries(monthEdits)) {
+      const originalValue = originals[debtId];
+      if (originalValue !== undefined && Math.abs(editedValue - originalValue) > 0.01) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   onMount(() => {
@@ -395,6 +473,14 @@
               <div class="flex flex-col gap-4 p-4">
                 <div class="flex items-center justify-between">
                   <P size="base" class="font-semibold">{monthPlan.paymentMonth.monthName}</P>
+                  <Button
+                    size="xs"
+                    color="primary"
+                    disabled={!hasEdits(monthIndex)}
+                    onclick={() => handleUpdateMonth(monthIndex)}
+                  >
+                    Update Month
+                  </Button>
                 </div>
 
                 <!-- Incomes Section -->
@@ -426,20 +512,9 @@
                 <!-- Debt Payments Section -->
                 {#if monthPlan.debtPayments.length > 0}
                   <div class="flex flex-col gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
-                    <div class="flex items-center justify-between">
-                      <P size="sm" class="font-semibold text-red-700 dark:text-red-400"
-                        >Debt Payments</P
-                      >
-                      {#if hasEdits(monthIndex)}
-                        <Button
-                          size="xs"
-                          color="primary"
-                          onclick={() => handleUpdateMonth(monthIndex)}
-                        >
-                          Update
-                        </Button>
-                      {/if}
-                    </div>
+                    <P size="sm" class="font-semibold text-red-700 dark:text-red-400"
+                      >Debt Payments</P
+                    >
                     {#each monthPlan.debtPayments as debtPayment}
                       <div class="flex items-center justify-between pl-4 text-sm">
                         <P
@@ -455,12 +530,23 @@
                         </P>
                         <div class="flex items-center gap-2">
                           {#if debtPayment.isPaidOff}
-                            <P size="sm" class="text-green-600 dark:text-green-400">Paid Off!</P>
+                            <div class="flex flex-col items-end gap-1">
+                              <P size="sm" class="text-green-600 dark:text-green-400">Paid Off!</P>
+                              <P size="xs" class="text-green-600 dark:text-green-400">
+                                ${debtPayment.payment.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </P>
+                            </div>
                           {:else}
                             <input
                               type="number"
-                              value={getEditedPayment(monthIndex, debtPayment.debtId) ??
-                                debtPayment.payment}
+                              value={getDisplayPayment(
+                                monthIndex,
+                                debtPayment.debtId,
+                                debtPayment.payment,
+                              )}
                               oninput={(e) =>
                                 handlePaymentChange(
                                   monthIndex,

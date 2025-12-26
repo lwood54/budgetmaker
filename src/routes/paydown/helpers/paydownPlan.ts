@@ -12,7 +12,7 @@ export interface DebtPayment {
   debtId: string;
   debtName: string;
   balance: number;
-  payment: number;
+  payment: number; // Actual payment amount (principal + interest, may be less than planned payment when paid off)
   interest: number;
   principal: number;
   isPaidOff: boolean;
@@ -57,6 +57,7 @@ function calculateDebtPaymentByType(
   principal: number;
   newBalance: number;
   isPaidOff: boolean;
+  actualPayment: number; // Actual payment amount (principal + interest, capped at monthlyPayment)
 } {
   const monthlyInterestRate = interestRate / 100 / 12;
 
@@ -72,11 +73,16 @@ function calculateDebtPaymentByType(
   const newBalance = Math.max(0, balance - principal);
   const isPaidOff = newBalance <= 0.01; // Consider paid off if balance is less than 1 cent
 
+  // Actual payment is the amount actually needed: principal + interest
+  // When paid off, this will be less than or equal to monthlyPayment
+  const actualPayment = principal + interest;
+
   return {
     interest: Math.round(interest * 100) / 100,
     principal: Math.round(principal * 100) / 100,
     newBalance: Math.round(newBalance * 100) / 100,
     isPaidOff,
+    actualPayment: Math.round(actualPayment * 100) / 100,
   };
 }
 
@@ -165,15 +171,17 @@ function calculateDebtPayment(
 /**
  * Recalculate plan from a specific month forward
  * Used when user edits payments - only recalculates current and future months
+ * @param manuallyEditedPayments - Record of all manually edited payments across all months to preserve
  */
 export function recalculatePlanFromMonth(
   plan: MonthlyPaymentPlan[],
   fromMonthIndex: number,
-  updatedPayments: Map<string, number>, // debtId -> new payment amount
+  updatedPayments: Map<string, number>, // debtId -> new payment amount for the update month
   debts: PaydownDebt[],
   incomes: MonthlyIncome[],
   recurringExpenses: RecurringExpense[],
   additionalSnowball: number,
+  manuallyEditedPayments: Record<number, Record<string, number>> = {}, // monthIndex -> debtId -> payment
 ): MonthlyPaymentPlan[] {
   if (fromMonthIndex >= plan.length) return plan;
 
@@ -202,9 +210,13 @@ export function recalculatePlanFromMonth(
     });
   }
 
-  // Set payment amounts - use updated payments if provided, otherwise use original debt payments
+  // Set payment amounts - only use updated payments for the specific month being updated
+  // For future months, we'll use the original debt monthly payment (snowball will be applied)
+  // This ensures edits only affect the month being updated, not future months
   debts.forEach((debt) => {
-    currentPayments.set(debt.id, updatedPayments.get(debt.id) ?? debt.monthlyPayment);
+    // Start with original debt monthly payment
+    // Updated payments will be applied only to the month being updated in the loop below
+    currentPayments.set(debt.id, debt.monthlyPayment);
   });
 
   // Sort debts by balance (lowest first) - snowball method
@@ -227,6 +239,23 @@ export function recalculatePlanFromMonth(
     : new Date();
   const maxMonths = plan.length;
 
+  // Use the provided manuallyEditedPayments to preserve manually edited fields in future months
+  // Convert to Map for easier lookup
+  const preservedPayments = new Map<number, Map<string, number>>(); // monthIndex -> debtId -> payment
+  for (const [monthIndexStr, monthEdits] of Object.entries(manuallyEditedPayments)) {
+    const monthIndex = parseInt(monthIndexStr, 10);
+    // Only preserve edits in months after the update month
+    if (monthIndex > fromMonthIndex && monthIndex < maxMonths) {
+      const preservedForMonth = new Map<string, number>();
+      for (const [debtId, payment] of Object.entries(monthEdits)) {
+        preservedForMonth.set(debtId, payment);
+      }
+      if (preservedForMonth.size > 0) {
+        preservedPayments.set(monthIndex, preservedForMonth);
+      }
+    }
+  }
+
   // Recalculate from the update month forward
   for (let monthIndex = fromMonthIndex; monthIndex < maxMonths; monthIndex++) {
     const paymentDate = new Date(startDate);
@@ -244,8 +273,8 @@ export function recalculatePlanFromMonth(
     let totalInterest = 0;
     let totalPrincipal = 0;
 
-    // Find the first unpaid debt (lowest balance that hasn't been paid off)
-    const firstUnpaidDebt = sortedDebts.find((debt) => !paidOffDebts.has(debt.id));
+    // Check if this month has preserved payments (manually edited in a previous update)
+    const monthPreservedPayments = preservedPayments.get(monthIndex);
 
     // Calculate total snowball from all paid-off debts
     let totalSnowballFromPaidOffDebts = 0;
@@ -255,29 +284,68 @@ export function recalculatePlanFromMonth(
       }
     }
 
+    // Track excess payments from debts paid off this month to add to next debt
+    let excessFromThisMonth = 0;
+    // Track which debt is currently receiving the snowball (the lowest unpaid debt)
+    let currentSnowballRecipient: PaydownDebt | null = null;
+    // Track debts paid off during this month's processing (for determining next snowball recipient)
+    const paidOffThisMonth = new Set<string>();
+
     // Calculate payments for each active debt
     for (const debt of sortedDebts) {
       if (paidOffDebts.has(debt.id)) continue;
 
       const balance = currentBalances.get(debt.id) || 0;
-      const basePayment = currentPayments.get(debt.id) || 0;
+
+      // Determine base payment:
+      // - If this is the update month and this debt was edited, use the edited payment
+      // - If this month has preserved payments for this debt, use the preserved payment
+      // - Otherwise, use the original debt monthly payment
+      let basePayment = currentPayments.get(debt.id) || 0;
+      if (monthIndex === fromMonthIndex && updatedPayments.has(debt.id)) {
+        basePayment = updatedPayments.get(debt.id)!;
+      } else if (monthPreservedPayments?.has(debt.id)) {
+        // Use preserved payment from a previous manual edit
+        basePayment = monthPreservedPayments.get(debt.id)!;
+      }
+
+      // Determine if this debt should receive the snowball
+      // The snowball goes to the lowest unpaid debt
+      // If the previous recipient was paid off, recalculate who should receive it now
+      if (!currentSnowballRecipient || paidOffThisMonth.has(currentSnowballRecipient.id)) {
+        // Find the lowest unpaid debt (not in paidOffDebts and not paid off this month)
+        currentSnowballRecipient =
+          sortedDebts.find((d) => !paidOffDebts.has(d.id) && !paidOffThisMonth.has(d.id)) || null;
+      }
+
+      // Determine if this is a preserved (manually edited) payment
+      const isPreservedPayment = monthPreservedPayments?.has(debt.id) ?? false;
 
       // Start with base payment
       let snowballPayment = basePayment;
 
-      // Only add snowballed payments from paid-off debts to the FIRST unpaid debt (next lowest)
-      if (firstUnpaidDebt && debt.id === firstUnpaidDebt.id) {
-        snowballPayment += totalSnowballFromPaidOffDebts;
-        snowballPayment += additionalSnowball;
+      // If this is a preserved payment, use it exactly (don't add snowball to it)
+      // Otherwise, add snowball to the base payment
+      if (!isPreservedPayment) {
+        // Only add snowballed payments from paid-off debts to the current snowball recipient
+        if (currentSnowballRecipient && debt.id === currentSnowballRecipient.id) {
+          snowballPayment += totalSnowballFromPaidOffDebts;
+          snowballPayment += additionalSnowball;
+          // Also add any excess from debts paid off earlier in this month
+          snowballPayment += excessFromThisMonth;
+        }
       }
 
       const result = calculateDebtPayment(balance, debt.interestRate, snowballPayment, debt.type);
+
+      // Use actual payment amount (may be less than snowballPayment if paid off)
+      const actualPayment = result.actualPayment;
 
       debtPayments.push({
         debtId: debt.id,
         debtName: debt.name,
         balance: result.newBalance,
-        payment: snowballPayment,
+        payment: actualPayment,
         interest: result.interest,
         principal: result.principal,
         isPaidOff: result.isPaidOff,
@@ -289,9 +357,17 @@ export function recalculatePlanFromMonth(
       // Track newly paid off debts
       if (result.isPaidOff) {
         newlyPaidOffDebts.push(debt.id);
+        paidOffThisMonth.add(debt.id);
+        // Calculate excess payment (snowballPayment - actualPayment) to add to next debt
+        const excess = snowballPayment - actualPayment;
+        excessFromThisMonth += excess;
+        // If this was the snowball recipient, clear it so we recalculate for the next debt
+        if (currentSnowballRecipient && debt.id === currentSnowballRecipient.id) {
+          currentSnowballRecipient = null;
+        }
       }
 
-      totalPayment += snowballPayment;
+      totalPayment += actualPayment;
       totalInterest += result.interest;
       totalPrincipal += result.principal;
     }
@@ -390,17 +466,20 @@ export function generateSnowballPlan(
       0,
     );
 
-    // Find the first unpaid debt (lowest balance that hasn't been paid off)
-    const firstUnpaidDebt = sortedDebts.find((debt) => !paidOffDebts.has(debt.id));
-
     // Find all paid-off debts and calculate total snowball payment
-    // This should only go to the NEXT lowest unpaid debt (the first unpaid debt)
     let totalSnowballFromPaidOffDebts = 0;
     for (const paidOffDebt of sortedDebts) {
       if (paidOffDebts.has(paidOffDebt.id)) {
         totalSnowballFromPaidOffDebts += currentPayments.get(paidOffDebt.id) || 0;
       }
     }
+
+    // Track excess payments from debts paid off this month to add to next debt
+    let excessFromThisMonth = 0;
+    // Track which debt is currently receiving the snowball (the lowest unpaid debt)
+    let currentSnowballRecipient: PaydownDebt | null = null;
+    // Track debts paid off during this month's processing (for determining next snowball recipient)
+    const paidOffThisMonth = new Set<string>();
 
     // Calculate payments for each active debt
     for (const debt of sortedDebts) {
@@ -409,23 +488,36 @@ export function generateSnowballPlan(
       const balance = currentBalances.get(debt.id) || 0;
       const basePayment = currentPayments.get(debt.id) || 0;
 
+      // Determine if this debt should receive the snowball
+      // The snowball goes to the lowest unpaid debt
+      // If the previous recipient was paid off, recalculate who should receive it now
+      if (!currentSnowballRecipient || paidOffThisMonth.has(currentSnowballRecipient.id)) {
+        // Find the lowest unpaid debt (not in paidOffDebts and not paid off this month)
+        currentSnowballRecipient =
+          sortedDebts.find((d) => !paidOffDebts.has(d.id) && !paidOffThisMonth.has(d.id)) || null;
+      }
+
       // Start with base payment
       let snowballPayment = basePayment;
 
-      // Only add snowballed payments from paid-off debts to the FIRST unpaid debt (next lowest)
-      // When that debt is paid off, the snowball moves to the next one
-      if (firstUnpaidDebt && debt.id === firstUnpaidDebt.id) {
+      // Only add snowballed payments from paid-off debts to the current snowball recipient
+      if (currentSnowballRecipient && debt.id === currentSnowballRecipient.id) {
         snowballPayment += totalSnowballFromPaidOffDebts;
         snowballPayment += additionalSnowball;
+        // Also add any excess from debts paid off earlier in this month
+        snowballPayment += excessFromThisMonth;
       }
 
       const result = calculateDebtPayment(balance, debt.interestRate, snowballPayment, debt.type);
+
+      // Use actual payment amount (may be less than snowballPayment if paid off)
+      const actualPayment = result.actualPayment;
 
       debtPayments.push({
         debtId: debt.id,
         debtName: debt.name,
         balance: result.newBalance,
-        payment: snowballPayment,
+        payment: actualPayment,
         interest: result.interest,
         principal: result.principal,
         isPaidOff: result.isPaidOff,
@@ -437,9 +529,17 @@ export function generateSnowballPlan(
       // Track newly paid off debts (mark them after processing all debts)
       if (result.isPaidOff) {
         newlyPaidOffDebts.push(debt.id);
+        paidOffThisMonth.add(debt.id);
+        // Calculate excess payment (snowballPayment - actualPayment) to add to next debt
+        const excess = snowballPayment - actualPayment;
+        excessFromThisMonth += excess;
+        // If this was the snowball recipient, clear it so we recalculate for the next debt
+        if (currentSnowballRecipient && debt.id === currentSnowballRecipient.id) {
+          currentSnowballRecipient = null;
+        }
       }
 
-      totalPayment += snowballPayment;
+      totalPayment += actualPayment;
       totalInterest += result.interest;
       totalPrincipal += result.principal;
     }
