@@ -17,6 +17,7 @@ export interface PaydownDebt {
   amount: number; // Debt amount
   interestRate: number; // Interest rate as percentage (e.g., 4.25 for 4.25%)
   monthlyPayment: number; // Monthly payment amount
+  priority: number; // Priority for snowball (1 = highest, 0 = skip)
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
@@ -30,7 +31,8 @@ export function getAllDebts(): PaydownDebt[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
-    return JSON.parse(stored) as PaydownDebt[];
+    const debts = JSON.parse(stored) as PaydownDebt[];
+    return debts;
   } catch (error) {
     console.error('Error reading debts from localStorage:', error);
     return [];
@@ -56,6 +58,7 @@ export function addDebt(debt: Omit<PaydownDebt, 'id' | 'createdAt' | 'updatedAt'
   const debts = getAllDebts();
   const newDebt: PaydownDebt = {
     ...debt,
+    priority: debt.priority ?? 1, // Default to 1 (highest priority) if not provided
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
