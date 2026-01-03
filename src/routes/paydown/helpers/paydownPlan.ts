@@ -310,6 +310,8 @@ function calculateDebtPayment(
  * Recalculate plan from a specific month forward
  * Used when user edits payments - only recalculates current and future months
  * @param manuallyEditedPayments - Record of all manually edited payments across all months to preserve
+ * @param manuallyEditedIncomes - Record of all manually edited incomes across all months to preserve
+ * @param manuallyEditedRecurringExpenses - Record of all manually edited recurring expenses across all months to preserve
  */
 export function recalculatePlanFromMonth(
   plan: MonthlyPaymentPlan[],
@@ -320,6 +322,8 @@ export function recalculatePlanFromMonth(
   recurringExpenses: RecurringExpense[],
   additionalSnowball: number,
   manuallyEditedPayments: Record<number, Record<string, number>> = {}, // monthIndex -> debtId -> payment
+  manuallyEditedIncomes: Record<number, Record<string, number>> = {}, // monthIndex -> incomeId -> amount
+  manuallyEditedRecurringExpenses: Record<number, Record<string, number>> = {}, // monthIndex -> expenseId -> amount
 ): MonthlyPaymentPlan[] {
   if (fromMonthIndex >= plan.length) return plan;
 
@@ -361,12 +365,7 @@ export function recalculatePlanFromMonth(
   // Debts with priority 0 are sorted last but will be skipped during snowball calculation
   const sortedDebts = sortDebtsByPriority(debts, currentBalances);
 
-  // Get totals for incomes and recurring expenses
-  const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
-  const totalRecurringExpenses = recurringExpenses.reduce(
-    (sum, expense) => sum + expense.amount,
-    0,
-  );
+  // Note: Incomes will be calculated per month using edited values when available
 
   // Get the start date from the first month
   const startDate = plan[0]?.paymentMonth
@@ -387,6 +386,42 @@ export function recalculatePlanFromMonth(
       }
       if (preservedForMonth.size > 0) {
         preservedPayments.set(monthIndex, preservedForMonth);
+      }
+    }
+  }
+
+  // Use the provided manuallyEditedIncomes to preserve manually edited incomes
+  // Convert to Map for easier lookup
+  // Include the update month and future months
+  const preservedIncomes = new Map<number, Map<string, number>>(); // monthIndex -> incomeId -> amount
+  for (const [monthIndexStr, monthEdits] of Object.entries(manuallyEditedIncomes)) {
+    const monthIndex = parseInt(monthIndexStr, 10);
+    // Include edits for the update month and future months
+    if (monthIndex >= fromMonthIndex && monthIndex < maxMonths) {
+      const preservedForMonth = new Map<string, number>();
+      for (const [incomeId, amount] of Object.entries(monthEdits)) {
+        preservedForMonth.set(incomeId, amount);
+      }
+      if (preservedForMonth.size > 0) {
+        preservedIncomes.set(monthIndex, preservedForMonth);
+      }
+    }
+  }
+
+  // Use the provided manuallyEditedRecurringExpenses to preserve manually edited expenses
+  // Convert to Map for easier lookup
+  // Include the update month and future months
+  const preservedRecurringExpenses = new Map<number, Map<string, number>>(); // monthIndex -> expenseId -> amount
+  for (const [monthIndexStr, monthEdits] of Object.entries(manuallyEditedRecurringExpenses)) {
+    const monthIndex = parseInt(monthIndexStr, 10);
+    // Include edits for the update month and future months
+    if (monthIndex >= fromMonthIndex && monthIndex < maxMonths) {
+      const preservedForMonth = new Map<string, number>();
+      for (const [expenseId, amount] of Object.entries(monthEdits)) {
+        preservedForMonth.set(expenseId, amount);
+      }
+      if (preservedForMonth.size > 0) {
+        preservedRecurringExpenses.set(monthIndex, preservedForMonth);
       }
     }
   }
@@ -593,6 +628,47 @@ export function recalculatePlanFromMonth(
     sortedDebts.length = 0;
     sortedDebts.push(...reSortedDebts);
 
+    // Calculate incomes for this month (use edited values if available)
+    const monthPreservedIncomes = preservedIncomes.get(monthIndex);
+
+    // Build incomes array for this month using edited values when available
+    const monthIncomes: MonthlyIncome[] = incomes.map((income) => {
+      // Check if this income was edited for this month
+      const editedAmount = monthPreservedIncomes?.get(income.id);
+      if (editedAmount !== undefined) {
+        return {
+          ...income,
+          amount: editedAmount,
+        };
+      }
+      return income;
+    });
+
+    // Calculate total income for this month
+    const totalIncome = monthIncomes.reduce((sum, income) => sum + income.amount, 0);
+
+    // Calculate recurring expenses for this month (use edited values if available)
+    const monthPreservedExpenses = preservedRecurringExpenses.get(monthIndex);
+
+    // Build recurring expenses array for this month using edited values when available
+    const monthRecurringExpenses: RecurringExpense[] = recurringExpenses.map((expense) => {
+      // Check if this expense was edited for this month
+      const editedAmount = monthPreservedExpenses?.get(expense.id);
+      if (editedAmount !== undefined) {
+        return {
+          ...expense,
+          amount: editedAmount,
+        };
+      }
+      return expense;
+    });
+
+    // Calculate total recurring expenses for this month
+    const totalRecurringExpenses = monthRecurringExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0,
+    );
+
     // Calculate remaining balance
     const remainingBalance = totalIncome - totalPayment - totalRecurringExpenses;
 
@@ -602,9 +678,9 @@ export function recalculatePlanFromMonth(
       totalPayment: Math.round(totalPayment * 100) / 100,
       totalInterest: Math.round(totalInterest * 100) / 100,
       totalPrincipal: Math.round(totalPrincipal * 100) / 100,
-      incomes,
+      incomes: monthIncomes,
       totalIncome: Math.round(totalIncome * 100) / 100,
-      recurringExpenses,
+      recurringExpenses: monthRecurringExpenses,
       totalRecurringExpenses: Math.round(totalRecurringExpenses * 100) / 100,
       remainingBalance: Math.round(remainingBalance * 100) / 100,
     });
