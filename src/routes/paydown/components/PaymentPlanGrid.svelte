@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { Button, P } from 'flowbite-svelte';
   import type { MonthlyPaymentPlan, DebtPayment } from '../helpers/paydownPlan';
   import type { PaydownDebt } from '../helpers/localStorage';
@@ -11,6 +12,14 @@
     handleUpdateMonth: (monthIndex: number) => void;
     getDisplayPayment: (monthIndex: number, debtId: string, defaultPayment: number) => number;
     handlePaymentChange: (monthIndex: number, debtId: string, value: string) => void;
+    getDisplayIncome: (monthIndex: number, incomeId: string, currentAmount: number) => number;
+    handleIncomeChange: (monthIndex: number, incomeId: string, value: string) => void;
+    getDisplayRecurringExpense: (
+      monthIndex: number,
+      expenseId: string,
+      currentAmount: number,
+    ) => number;
+    handleRecurringExpenseChange: (monthIndex: number, expenseId: string, value: string) => void;
   };
 
   let {
@@ -20,6 +29,10 @@
     handleUpdateMonth,
     getDisplayPayment,
     handlePaymentChange,
+    getDisplayIncome,
+    handleIncomeChange,
+    getDisplayRecurringExpense,
+    handleRecurringExpenseChange,
   }: Props = $props();
 
   // Get all unique debts from the plan, sorted by priority (highest first)
@@ -120,13 +133,18 @@
     return debtPayment.payment > basePayment + 0.01;
   }
 
-  // Track collapsed state for debt payments and recurring expenses
+  // Track collapsed state for debt payments, incomes, and recurring expenses
   // Empty set means all years are expanded by default
   let collapsedDebts = $state<Set<number>>(new Set());
+  let expandedIncomes = $state<Set<number>>(new Set());
   let expandedRecurring = $state<Set<number>>(new Set());
 
   // Track which cell is currently being edited: "monthIndex-debtId"
   let editingCell = $state<string | null>(null);
+
+  // Lazy loading: track which years are loaded/visible
+  let loadedYears = $state<Set<number>>(new Set([0])); // First year loaded by default
+  let yearRefs = $state<Map<number, HTMLDivElement>>(new Map());
 
   function toggleDebts(yearIndex: number) {
     if (collapsedDebts.has(yearIndex)) {
@@ -135,6 +153,15 @@
       collapsedDebts.add(yearIndex);
     }
     collapsedDebts = new Set(collapsedDebts);
+  }
+
+  function toggleIncomes(yearIndex: number) {
+    if (expandedIncomes.has(yearIndex)) {
+      expandedIncomes.delete(yearIndex);
+    } else {
+      expandedIncomes.add(yearIndex);
+    }
+    expandedIncomes = new Set(expandedIncomes);
   }
 
   function toggleRecurring(yearIndex: number) {
@@ -160,278 +187,467 @@
       destroy() {},
     };
   }
+
+  // IntersectionObserver for lazy loading years
+  let observer: IntersectionObserver | null = null;
+
+  // Action to set up intersection observer for a year element
+  function setupYearObserver(node: HTMLDivElement) {
+    if (!node) return;
+
+    const yearIndexAttr = node.getAttribute('data-year-index');
+    if (yearIndexAttr === null) return;
+
+    const yearIndex = parseInt(yearIndexAttr, 10);
+
+    // Store ref
+    yearRefs.set(yearIndex, node);
+
+    // Create observer if it doesn't exist
+    if (!observer) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const indexAttr = entry.target.getAttribute('data-year-index');
+              if (indexAttr !== null) {
+                const index = parseInt(indexAttr, 10);
+                if (!loadedYears.has(index)) {
+                  loadedYears.add(index);
+                  loadedYears = new Set(loadedYears); // Trigger reactivity
+                }
+              }
+            }
+          });
+        },
+        {
+          rootMargin: '200px', // Start loading 200px before it comes into view
+        },
+      );
+    }
+
+    // Observe this year element
+    observer.observe(node);
+
+    return {
+      update(newNode: HTMLDivElement) {
+        if (node !== newNode) {
+          if (observer) {
+            observer.unobserve(node);
+          }
+          node = newNode;
+          const newYearIndexAttr = node.getAttribute('data-year-index');
+          if (newYearIndexAttr !== null) {
+            const newYearIndex = parseInt(newYearIndexAttr, 10);
+            yearRefs.set(newYearIndex, node);
+            if (observer) {
+              observer.observe(node);
+            }
+          }
+        }
+      },
+      destroy() {
+        if (observer) {
+          observer.unobserve(node);
+        }
+      },
+    };
+  }
+
+  function cleanupObserver() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  }
+
+  // Cleanup on component destroy
+  onDestroy(() => {
+    cleanupObserver();
+  });
 </script>
 
 {#if paymentPlan.length > 0}
   <div class="flex w-full flex-col gap-6">
     {#each yearsData() as yearData, yearIndex}
-      <div class="flex flex-col gap-2">
+      {@const isLoaded = loadedYears.has(yearIndex)}
+      <div class="flex flex-col gap-2" data-year-index={yearIndex} use:setupYearObserver>
         <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
           {yearData.year}
         </h3>
 
-        <div class="overflow-x-auto">
-          <div class="inline-block min-w-full">
-            <!-- Grid container: 1 label column + N month columns -->
-            <div
-              class="grid border border-neutral-300 dark:border-neutral-700"
-              style="grid-template-columns: 200px repeat({yearData.months
-                .length}, minmax(120px, 1fr));"
-            >
-              <!-- Header row -->
+        {#if isLoaded}
+          <div class="overflow-x-auto">
+            <div class="inline-block min-w-full">
+              <!-- Grid container: 1 label column + N month columns -->
               <div
-                class="sticky left-0 z-20 border-r border-neutral-300 bg-neutral-100 px-4 py-2 dark:border-neutral-700 dark:bg-neutral-800"
+                class="grid border border-neutral-300 dark:border-neutral-700"
+                style="grid-template-columns: 200px repeat({yearData.months
+                  .length}, minmax(120px, 1fr));"
               >
-                <P size="sm" class="font-semibold">Debt</P>
-              </div>
-              {#each yearData.months as monthPlan, monthInYear}
+                <!-- Header row -->
                 <div
-                  class="border-r border-neutral-300 bg-neutral-100 px-3 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-neutral-800"
+                  class="sticky left-0 z-20 border-r border-neutral-300 bg-neutral-100 px-4 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                 >
-                  {#if monthPlan}
-                    <div class="flex flex-col gap-1">
-                      <P size="xs" class="font-semibold">{monthPlan.paymentMonth.monthName}</P>
-                      <Button
-                        size="xs"
-                        color="primary"
-                        disabled={!hasEdits(getMonthIndex(yearIndex, monthInYear))}
-                        onclick={() => handleUpdateMonth(getMonthIndex(yearIndex, monthInYear))}
-                      >
-                        Update
-                      </Button>
-                    </div>
-                  {:else}
-                    <P size="xs" class="text-neutral-400">-</P>
-                  {/if}
+                  <P size="sm" class="font-semibold">Debt</P>
                 </div>
-              {/each}
-
-              <!-- Income row -->
-              <div
-                class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-green-50 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-green-900/20"
-              >
-                <P size="sm" class="font-semibold text-green-700 dark:text-green-400">Income</P>
-              </div>
-              {#each yearData.months as monthPlan}
-                <div
-                  class="border-t border-r border-neutral-300 bg-green-50 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-green-900/20"
-                >
-                  {#if monthPlan}
-                    <P size="sm" class="font-semibold text-green-600 dark:text-green-300">
-                      +${monthPlan.totalIncome.toLocaleString()}
-                    </P>
-                  {:else}
-                    <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
-                  {/if}
-                </div>
-              {/each}
-
-              <!-- Recurring Expenses row (collapsible) -->
-              <div
-                class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-orange-50 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-orange-900/20"
-              >
-                <button
-                  onclick={() => toggleRecurring(yearIndex)}
-                  class="flex items-center gap-2 hover:text-orange-600 dark:hover:text-orange-400"
-                >
-                  <P size="sm" class="font-semibold text-orange-700 dark:text-orange-400"
-                    >Recurring</P
-                  >
-                  <span class="text-xs">{expandedRecurring.has(yearIndex) ? '▼' : '▶'}</span>
-                </button>
-              </div>
-              {#each yearData.months as monthPlan}
-                <div
-                  class="border-t border-r border-neutral-300 bg-orange-50 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-orange-900/20"
-                >
-                  {#if monthPlan}
-                    <P size="sm" class="font-semibold text-orange-600 dark:text-orange-300">
-                      -${monthPlan.totalRecurringExpenses.toLocaleString()}
-                    </P>
-                  {:else}
-                    <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
-                  {/if}
-                </div>
-              {/each}
-
-              <!-- Expanded recurring expenses rows -->
-              {#if expandedRecurring.has(yearIndex)}
-                {#each yearData.months[0]?.recurringExpenses || [] as expense}
+                {#each yearData.months as monthPlan, monthInYear}
                   <div
-                    class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-orange-50/50 px-4 py-1 pl-8 text-xs dark:border-neutral-700 dark:bg-orange-900/10"
+                    class="border-r border-neutral-300 bg-neutral-100 px-3 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-neutral-800"
                   >
-                    <P size="xs" class="text-orange-700 dark:text-orange-400">{expense.title}</P>
+                    {#if monthPlan}
+                      <div class="flex flex-col gap-1">
+                        <P size="xs" class="font-semibold">{monthPlan.paymentMonth.monthName}</P>
+                        <Button
+                          size="xs"
+                          color="primary"
+                          disabled={!hasEdits(getMonthIndex(yearIndex, monthInYear))}
+                          onclick={() => handleUpdateMonth(getMonthIndex(yearIndex, monthInYear))}
+                        >
+                          Update
+                        </Button>
+                      </div>
+                    {:else}
+                      <P size="xs" class="text-neutral-400">-</P>
+                    {/if}
                   </div>
-                  {#each yearData.months as monthPlan}
-                    <div
-                      class="border-t border-r border-neutral-300 bg-orange-50/50 px-2 py-1 text-center text-xs last:border-r-0 dark:border-neutral-700 dark:bg-orange-900/10"
-                    >
-                      {#if monthPlan}
-                        {@const expenseItem = monthPlan.recurringExpenses.find(
-                          (e) => e.id === expense.id,
-                        )}
-                        {#if expenseItem}
-                          <P size="xs" class="text-orange-600 dark:text-orange-300">
-                            -${expenseItem.amount.toLocaleString()}
-                          </P>
-                        {:else}
-                          <P size="xs" class="text-neutral-400">-</P>
-                        {/if}
-                      {:else}
-                        <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
-                      {/if}
-                    </div>
-                  {/each}
                 {/each}
-              {/if}
 
-              <!-- Totals row (collapsible) -->
-              <div
-                class="sticky left-0 z-10 border-t-2 border-r border-neutral-400 bg-neutral-50 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-neutral-800/50"
-              >
-                <button
-                  onclick={() => toggleDebts(yearIndex)}
-                  class="hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-2"
-                >
-                  <P size="sm" class="font-semibold">Total Payments</P>
-                  <span class="text-xs">{!collapsedDebts.has(yearIndex) ? '▼' : '▶'}</span>
-                </button>
-              </div>
-              {#each yearData.months as monthPlan}
+                <!-- Income row (collapsible) -->
                 <div
-                  class="border-t-2 border-r border-neutral-400 bg-neutral-50 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-neutral-800/50"
+                  class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-green-50 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-green-900/20"
                 >
-                  {#if monthPlan}
-                    <P size="sm" class="font-semibold text-red-600 dark:text-red-400">
-                      ${monthPlan.totalPayment.toLocaleString()}
-                    </P>
-                  {:else}
-                    <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
-                  {/if}
-                </div>
-              {/each}
-
-              <!-- Expanded debt payment rows -->
-              {#if !collapsedDebts.has(yearIndex)}
-                {#each allDebts() as debt}
-                  {@const priority = getDebtPriority(debt.id)}
-                  <div
-                    class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-white px-4 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-900/50"
+                  <button
+                    onclick={() => toggleIncomes(yearIndex)}
+                    class="flex items-center gap-2 hover:text-green-600 dark:hover:text-green-400"
                   >
-                    <div class="flex flex-col gap-1">
-                      <P size="sm" class="font-semibold">{debt.name}</P>
+                    <P size="sm" class="font-semibold text-green-700 dark:text-green-400">Income</P>
+                    <span class="text-xs text-neutral-700 dark:text-neutral-300"
+                      >{expandedIncomes.has(yearIndex) ? '▼' : '▶'}</span
+                    >
+                  </button>
+                </div>
+                {#each yearData.months as monthPlan}
+                  <div
+                    class="border-t border-r border-neutral-300 bg-green-50 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-green-900/20"
+                  >
+                    {#if monthPlan}
+                      <P size="sm" class="font-semibold text-green-600 dark:text-green-300">
+                        +${monthPlan.totalIncome.toLocaleString()}
+                      </P>
+                    {:else}
+                      <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- Expanded income rows -->
+                {#if expandedIncomes.has(yearIndex)}
+                  {#each yearData.months[0]?.incomes || [] as income}
+                    <div
+                      class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-green-50/50 px-4 py-1 pl-8 text-xs dark:border-neutral-700 dark:bg-green-900/10"
+                    >
+                      <P size="xs" class="text-green-700 dark:text-green-400">{income.title}</P>
+                    </div>
+                    {#each yearData.months as monthPlan, monthInYear}
+                      {@const monthIndex = getMonthIndex(yearIndex, monthInYear)}
+                      {@const incomeItem = monthPlan?.incomes.find((i) => i.id === income.id)}
+                      {@const cellKey = `income-${monthIndex}-${income.id}`}
+                      {@const isEditing = editingCell === cellKey}
+                      {@const displayValue = incomeItem
+                        ? getDisplayIncome(monthIndex, income.id, incomeItem.amount)
+                        : 0}
                       <div
-                        class="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400"
+                        class="border-t border-r border-neutral-300 bg-green-50/50 px-2 py-1 text-center text-xs last:border-r-0 dark:border-neutral-700 dark:bg-green-900/10"
                       >
-                        {#if priority > 0}
-                          <span
-                            class="bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded px-1.5 py-0.5"
-                          >
-                            P{priority}
-                          </span>
+                        {#if monthPlan}
+                          {#if isEditing}
+                            <input
+                              type="number"
+                              value={displayValue}
+                              oninput={(e) =>
+                                handleIncomeChange(monthIndex, income.id, e.currentTarget.value)}
+                              onblur={() => (editingCell = null)}
+                              onkeydown={(e) => {
+                                if (e.key === 'Enter' || e.key === 'Escape') {
+                                  editingCell = null;
+                                }
+                              }}
+                              step="0.01"
+                              min="0"
+                              class="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-right text-xs text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+                              use:focusOnMount
+                            />
+                          {:else}
+                            <button
+                              type="button"
+                              onclick={() => (editingCell = cellKey)}
+                              class="w-full cursor-pointer rounded px-2 py-1.5 text-right text-xs text-green-600 transition-all hover:bg-green-200 hover:font-semibold hover:shadow-sm dark:text-green-300 dark:hover:bg-green-700/50"
+                            >
+                              +${Math.round(displayValue).toLocaleString()}
+                            </button>
+                          {/if}
+                        {:else}
+                          <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
                         {/if}
-                        <span>Rate: {debt.interestRate}%</span>
+                      </div>
+                    {/each}
+                  {/each}
+                {/if}
+
+                <!-- Recurring Expenses row (collapsible) -->
+                <div
+                  class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-orange-50 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-orange-900/20"
+                >
+                  <button
+                    onclick={() => toggleRecurring(yearIndex)}
+                    class="flex items-center gap-2 hover:text-orange-600 dark:hover:text-orange-400"
+                  >
+                    <P size="sm" class="font-semibold text-orange-700 dark:text-orange-400"
+                      >Recurring</P
+                    >
+                    <span class="text-xs text-neutral-700 dark:text-neutral-300"
+                      >{expandedRecurring.has(yearIndex) ? '▼' : '▶'}</span
+                    >
+                  </button>
+                </div>
+                {#each yearData.months as monthPlan}
+                  <div
+                    class="border-t border-r border-neutral-300 bg-orange-50 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-orange-900/20"
+                  >
+                    {#if monthPlan}
+                      <P size="sm" class="font-semibold text-orange-600 dark:text-orange-300">
+                        -${monthPlan.totalRecurringExpenses.toLocaleString()}
+                      </P>
+                    {:else}
+                      <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- Expanded recurring expenses rows -->
+                {#if expandedRecurring.has(yearIndex)}
+                  {#each yearData.months[0]?.recurringExpenses || [] as expense}
+                    <div
+                      class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-orange-50/50 px-4 py-1 pl-8 text-xs dark:border-neutral-700 dark:bg-orange-900/10"
+                    >
+                      <P size="xs" class="text-orange-700 dark:text-orange-400">{expense.title}</P>
+                    </div>
+                    {#each yearData.months as monthPlan, monthInYear}
+                      {@const monthIndex = getMonthIndex(yearIndex, monthInYear)}
+                      {@const expenseItem = monthPlan?.recurringExpenses.find(
+                        (e) => e.id === expense.id,
+                      )}
+                      {@const cellKey = `expense-${monthIndex}-${expense.id}`}
+                      {@const isEditing = editingCell === cellKey}
+                      {@const displayValue = expenseItem
+                        ? getDisplayRecurringExpense(monthIndex, expense.id, expenseItem.amount)
+                        : 0}
+                      <div
+                        class="border-t border-r border-neutral-300 bg-orange-50/50 px-2 py-1 text-center text-xs last:border-r-0 dark:border-neutral-700 dark:bg-orange-900/10"
+                      >
+                        {#if monthPlan}
+                          {#if isEditing}
+                            <input
+                              type="number"
+                              value={displayValue}
+                              oninput={(e) =>
+                                handleRecurringExpenseChange(
+                                  monthIndex,
+                                  expense.id,
+                                  e.currentTarget.value,
+                                )}
+                              onblur={() => (editingCell = null)}
+                              onkeydown={(e) => {
+                                if (e.key === 'Enter' || e.key === 'Escape') {
+                                  editingCell = null;
+                                }
+                              }}
+                              step="0.01"
+                              min="0"
+                              class="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-right text-xs text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+                              use:focusOnMount
+                            />
+                          {:else}
+                            <button
+                              type="button"
+                              onclick={() => (editingCell = cellKey)}
+                              class="w-full cursor-pointer rounded px-2 py-1.5 text-right text-xs text-orange-600 transition-all hover:bg-orange-200 hover:font-semibold hover:shadow-sm dark:text-orange-300 dark:hover:bg-orange-700/50"
+                            >
+                              -${Math.round(displayValue).toLocaleString()}
+                            </button>
+                          {/if}
+                        {:else}
+                          <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
+                        {/if}
+                      </div>
+                    {/each}
+                  {/each}
+                {/if}
+
+                <!-- Totals row (collapsible) -->
+                <div
+                  class="sticky left-0 z-10 border-t-2 border-r border-neutral-400 bg-neutral-50 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-neutral-800/50"
+                >
+                  <button
+                    onclick={() => toggleDebts(yearIndex)}
+                    class="hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-2"
+                  >
+                    <P size="sm" class="font-semibold">Total Payments</P>
+                    <span class="text-xs text-neutral-700 dark:text-neutral-300"
+                      >{!collapsedDebts.has(yearIndex) ? '▼' : '▶'}</span
+                    >
+                  </button>
+                </div>
+                {#each yearData.months as monthPlan}
+                  <div
+                    class="border-t-2 border-r border-neutral-400 bg-neutral-50 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-neutral-800/50"
+                  >
+                    {#if monthPlan}
+                      <P size="sm" class="font-semibold text-red-600 dark:text-red-400">
+                        ${monthPlan.totalPayment.toLocaleString()}
+                      </P>
+                    {:else}
+                      <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- Expanded debt payment rows -->
+                {#if !collapsedDebts.has(yearIndex)}
+                  {#each allDebts() as debt}
+                    {@const priority = getDebtPriority(debt.id)}
+                    <div
+                      class="sticky left-0 z-10 border-t border-r border-neutral-300 bg-white px-4 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-900/50"
+                    >
+                      <div class="flex flex-col gap-1">
+                        <P size="sm" class="font-semibold">{debt.name}</P>
+                        <div
+                          class="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400"
+                        >
+                          {#if priority > 0}
+                            <span
+                              class="bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 rounded px-1.5 py-0.5"
+                            >
+                              P{priority}
+                            </span>
+                          {/if}
+                          <span>Rate: {debt.interestRate}%</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {#each yearData.months as monthPlan, monthInYear}
-                    {@const debtPayment = getDebtPaymentForMonth(monthPlan, debt.id)}
-                    {@const isSnowball = isSnowballRecipient(monthPlan, debt.id)}
-                    {@const monthIndex = getMonthIndex(yearIndex, monthInYear)}
-                    <div
-                      class="border-t border-r border-neutral-300 p-0 text-center last:border-r-0 dark:border-neutral-700 {isSnowball
-                        ? 'dark:bg-aqua-200/30 bg-teal-800'
-                        : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'}"
-                    >
-                      {#if monthPlan && debtPayment}
-                        {#if debtPayment.isPaidOff}
-                          <div class="flex flex-col items-center gap-1 px-2 py-2">
-                            <P size="xs" class="font-semibold text-green-600 dark:text-green-400"
-                              >Paid</P
-                            >
-                            <P size="xs" class="text-green-600 dark:text-green-400">
-                              ${Math.round(debtPayment.payment).toLocaleString()}
-                            </P>
-                          </div>
-                        {:else}
-                          {@const cellKey = `${monthIndex}-${debt.id}`}
-                          {@const isEditing = editingCell === cellKey}
-                          {@const displayValue = getDisplayPayment(
-                            monthIndex,
-                            debt.id,
-                            debtPayment.payment,
-                          )}
-                          <div class="flex flex-col items-end gap-1 px-2 py-2">
-                            {#if isEditing}
-                              <input
-                                type="number"
-                                value={displayValue}
-                                oninput={(e) =>
-                                  handlePaymentChange(monthIndex, debt.id, e.currentTarget.value)}
-                                onblur={() => (editingCell = null)}
-                                onkeydown={(e) => {
-                                  if (e.key === 'Enter' || e.key === 'Escape') {
-                                    editingCell = null;
-                                  }
-                                }}
-                                step="0.01"
-                                min="0"
-                                class="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-right text-xs text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
-                                use:focusOnMount
-                              />
-                            {:else}
-                              <button
-                                type="button"
-                                onclick={() => (editingCell = cellKey)}
-                                class="w-full cursor-pointer text-right text-sm text-neutral-900 transition-colors dark:text-neutral-100"
+                    {#each yearData.months as monthPlan, monthInYear}
+                      {@const debtPayment = getDebtPaymentForMonth(monthPlan, debt.id)}
+                      {@const isSnowball = isSnowballRecipient(monthPlan, debt.id)}
+                      {@const monthIndex = getMonthIndex(yearIndex, monthInYear)}
+                      <div
+                        class="border-t border-r border-neutral-300 p-0 text-center last:border-r-0 dark:border-neutral-700 {isSnowball
+                          ? 'dark:bg-aqua-200/30 bg-teal-800'
+                          : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'}"
+                      >
+                        {#if monthPlan && debtPayment}
+                          {#if debtPayment.isPaidOff}
+                            <div class="flex flex-col items-center gap-1 px-2 py-2">
+                              <P size="xs" class="font-semibold text-green-600 dark:text-green-400"
+                                >Paid</P
                               >
-                                ${Math.round(displayValue).toLocaleString()}
-                              </button>
-                            {/if}
-                            <P size="xs" class="text-right text-neutral-500 dark:text-neutral-400">
-                              ${Math.round(debtPayment.balance).toLocaleString()}
-                            </P>
-                          </div>
+                              <P size="xs" class="text-green-600 dark:text-green-400">
+                                ${Math.round(debtPayment.payment).toLocaleString()}
+                              </P>
+                            </div>
+                          {:else}
+                            {@const cellKey = `${monthIndex}-${debt.id}`}
+                            {@const isEditing = editingCell === cellKey}
+                            {@const displayValue = getDisplayPayment(
+                              monthIndex,
+                              debt.id,
+                              debtPayment.payment,
+                            )}
+                            <div class="flex flex-col items-end gap-1 px-2 py-2">
+                              {#if isEditing}
+                                <input
+                                  type="number"
+                                  value={displayValue}
+                                  oninput={(e) =>
+                                    handlePaymentChange(monthIndex, debt.id, e.currentTarget.value)}
+                                  onblur={() => (editingCell = null)}
+                                  onkeydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === 'Escape') {
+                                      editingCell = null;
+                                    }
+                                  }}
+                                  step="0.01"
+                                  min="0"
+                                  class="w-full rounded border border-neutral-300 bg-white px-3 py-1.5 text-right text-xs text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+                                  use:focusOnMount
+                                />
+                              {:else}
+                                <button
+                                  type="button"
+                                  onclick={() => (editingCell = cellKey)}
+                                  class="w-full cursor-pointer rounded px-3 py-2 text-right text-sm text-neutral-900 transition-all hover:bg-neutral-200 hover:font-semibold hover:shadow-sm dark:text-neutral-100 dark:hover:bg-neutral-700"
+                                >
+                                  ${Math.round(displayValue).toLocaleString()}
+                                </button>
+                              {/if}
+                              <P
+                                size="xs"
+                                class="text-right text-neutral-500 dark:text-neutral-400"
+                              >
+                                ${Math.round(debtPayment.balance).toLocaleString()}
+                              </P>
+                            </div>
+                          {/if}
+                        {:else if monthPlan}
+                          <P size="xs" class="text-neutral-400">-</P>
+                        {:else}
+                          <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
                         {/if}
-                      {:else if monthPlan}
-                        <P size="xs" class="text-neutral-400">-</P>
-                      {:else}
-                        <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
-                      {/if}
-                    </div>
+                      </div>
+                    {/each}
                   {/each}
-                {/each}
-              {/if}
+                {/if}
 
-              <!-- Remaining Balance row -->
-              <div
-                class="sticky left-0 z-10 border-t-2 border-r border-neutral-400 bg-neutral-100 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-neutral-800"
-              >
-                <P size="sm" class="font-semibold">Remaining</P>
-              </div>
-              {#each yearData.months as monthPlan}
+                <!-- Remaining Balance row -->
                 <div
-                  class="border-t-2 border-r border-neutral-400 bg-neutral-100 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-neutral-800"
+                  class="sticky left-0 z-10 border-t-2 border-r border-neutral-400 bg-neutral-100 px-4 py-2 font-semibold dark:border-neutral-700 dark:bg-neutral-800"
                 >
-                  {#if monthPlan}
-                    <P
-                      size="sm"
-                      class="font-bold {monthPlan.remainingBalance >= 0
-                        ? 'text-green-700 dark:text-green-400'
-                        : 'text-red-700 dark:text-red-400'}"
-                    >
-                      {monthPlan.remainingBalance >= 0
-                        ? '+'
-                        : ''}${monthPlan.remainingBalance.toLocaleString()}
-                    </P>
-                  {:else}
-                    <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
-                  {/if}
+                  <P size="sm" class="font-semibold">Remaining</P>
                 </div>
-              {/each}
+                {#each yearData.months as monthPlan}
+                  <div
+                    class="border-t-2 border-r border-neutral-400 bg-neutral-100 px-2 py-2 text-center last:border-r-0 dark:border-neutral-700 dark:bg-neutral-800"
+                  >
+                    {#if monthPlan}
+                      <P
+                        size="sm"
+                        class="font-bold {monthPlan.remainingBalance >= 0
+                          ? 'text-green-700 dark:text-green-400'
+                          : 'text-red-700 dark:text-red-400'}"
+                      >
+                        {monthPlan.remainingBalance >= 0
+                          ? '+'
+                          : ''}${monthPlan.remainingBalance.toLocaleString()}
+                      </P>
+                    {:else}
+                      <P size="xs" class="text-neutral-300 dark:text-neutral-600">-</P>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
             </div>
           </div>
-        </div>
+        {:else}
+          <!-- Placeholder for unloaded year -->
+          <div
+            class="flex items-center justify-center rounded-lg border-2 border-neutral-300 bg-neutral-50 p-16 dark:border-neutral-700 dark:bg-neutral-800/50"
+            style="min-height: 400px;"
+          >
+            <P size="sm" class="text-neutral-500 dark:text-neutral-400"
+              >Loading {yearData.year}...</P
+            >
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
