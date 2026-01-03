@@ -1,8 +1,13 @@
 <script lang="ts">
   import { Button, P } from 'flowbite-svelte';
-  import { sortDebtsByPriority } from '../helpers';
+  import { sortDebtsByPriority, type PaydownDebt } from '../helpers';
 
-  let { debts = $bindable([]), onAddClick = () => {}, onDelete = () => {} } = $props();
+  let {
+    debts = $bindable([]),
+    onAddClick = () => {},
+    onDelete = () => {},
+    onEdit = () => {},
+  } = $props();
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
@@ -24,7 +29,10 @@
               | Priority: {debt.priority || 0}
             </P>
           </div>
-          <Button color="red" size="sm" onclick={() => onDelete(debt.id)}>Delete</Button>
+          <div class="flex gap-2">
+            <Button size="sm" onclick={() => onEdit(debt)}>Edit</Button>
+            <Button color="red" size="sm" onclick={() => onDelete(debt.id)}>Delete</Button>
+          </div>
         </div>
       {/each}
     </div>

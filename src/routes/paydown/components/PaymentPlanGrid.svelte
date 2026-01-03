@@ -350,10 +350,7 @@
                               >Paid</P
                             >
                             <P size="xs" class="text-green-600 dark:text-green-400">
-                              ${debtPayment.payment.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
+                              ${Math.round(debtPayment.payment).toLocaleString()}
                             </P>
                           </div>
                         {:else}
@@ -364,35 +361,37 @@
                             debt.id,
                             debtPayment.payment,
                           )}
-                          {#if isEditing}
-                            <input
-                              type="number"
-                              value={displayValue}
-                              oninput={(e) =>
-                                handlePaymentChange(monthIndex, debt.id, e.currentTarget.value)}
-                              onblur={() => (editingCell = null)}
-                              onkeydown={(e) => {
-                                if (e.key === 'Enter' || e.key === 'Escape') {
-                                  editingCell = null;
-                                }
-                              }}
-                              step="0.01"
-                              min="0"
-                              class="h-full w-full rounded border border-neutral-300 bg-white px-2 py-1 text-right text-xs text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
-                              use:focusOnMount
-                            />
-                          {:else}
-                            <button
-                              type="button"
-                              onclick={() => (editingCell = cellKey)}
-                              class="h-full w-full cursor-pointer pr-2 text-right text-sm text-neutral-900 transition-colors dark:text-neutral-100"
-                            >
-                              ${displayValue.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </button>
-                          {/if}
+                          <div class="flex flex-col items-end gap-1 px-2 py-2">
+                            {#if isEditing}
+                              <input
+                                type="number"
+                                value={displayValue}
+                                oninput={(e) =>
+                                  handlePaymentChange(monthIndex, debt.id, e.currentTarget.value)}
+                                onblur={() => (editingCell = null)}
+                                onkeydown={(e) => {
+                                  if (e.key === 'Enter' || e.key === 'Escape') {
+                                    editingCell = null;
+                                  }
+                                }}
+                                step="0.01"
+                                min="0"
+                                class="w-full rounded border border-neutral-300 bg-white px-2 py-1 text-right text-xs text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+                                use:focusOnMount
+                              />
+                            {:else}
+                              <button
+                                type="button"
+                                onclick={() => (editingCell = cellKey)}
+                                class="w-full cursor-pointer text-right text-sm text-neutral-900 transition-colors dark:text-neutral-100"
+                              >
+                                ${Math.round(displayValue).toLocaleString()}
+                              </button>
+                            {/if}
+                            <P size="xs" class="text-right text-neutral-500 dark:text-neutral-400">
+                              ${Math.round(debtPayment.balance).toLocaleString()}
+                            </P>
+                          </div>
                         {/if}
                       {:else if monthPlan}
                         <P size="xs" class="text-neutral-400">-</P>

@@ -1,7 +1,13 @@
 <script lang="ts">
   import { Button, P } from 'flowbite-svelte';
+  import type { MonthlyIncome } from '../helpers';
 
-  let { incomes = $bindable([]), onAddClick = () => {}, onDelete = () => {} } = $props();
+  let {
+    incomes = $bindable([]),
+    onAddClick = () => {},
+    onDelete = () => {},
+    onEdit = () => {},
+  } = $props();
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
@@ -22,7 +28,10 @@
               ${income.amount.toLocaleString()}/mo
             </P>
           </div>
-          <Button color="red" size="sm" onclick={() => onDelete(income.id)}>Delete</Button>
+          <div class="flex gap-2">
+            <Button size="sm" onclick={() => onEdit(income)}>Edit</Button>
+            <Button color="red" size="sm" onclick={() => onDelete(income.id)}>Delete</Button>
+          </div>
         </div>
       {/each}
     </div>
