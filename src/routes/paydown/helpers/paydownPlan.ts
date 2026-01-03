@@ -43,39 +43,44 @@ function getMonthYearString(date: Date): string {
 }
 
 /**
- * Calculate a single month's payment for a debt based on its type
- * Most loan types use standard amortization (interest first, then principal)
- * Credit cards use the same formula
- * @param type - Debt type (currently all types use the same formula, but kept for future expansion)
+ * Common return type for all debt payment calculations
  */
-function calculateDebtPaymentByType(
-  balance: number,
-  interestRate: number,
-  monthlyPayment: number,
-  _type: DebtType, // Prefixed with _ to indicate intentionally unused for now
-): {
+type DebtPaymentResult = {
   interest: number;
   principal: number;
   newBalance: number;
   isPaidOff: boolean;
   actualPayment: number; // Actual payment amount (principal + interest, capped at monthlyPayment)
-} {
+};
+
+/**
+ * Calculate payment for credit card debt
+ * Credit cards typically calculate minimum payments as:
+ * - A percentage of balance (usually 1-3%) + interest
+ * - Or a fixed minimum (e.g., $25) + interest
+ * - When paying more than minimum, interest is calculated first, then principal
+ * Credit cards use daily compounding interest, but for monthly calculations we use monthly rate
+ */
+function calculateCreditCardPayment(
+  balance: number,
+  interestRate: number,
+  monthlyPayment: number,
+): DebtPaymentResult {
   const monthlyInterestRate = interestRate / 100 / 12;
 
-  // Calculate interest that accrues on the current balance
+  // Credit card interest is calculated on the average daily balance
+  // For monthly calculations, we use the balance at the start of the month
   const interest = balance * monthlyInterestRate;
 
-  // Principal is the portion of payment that goes toward reducing the balance
-  // Payment first covers interest, then the remainder goes to principal
-  // Principal cannot exceed the current balance
-  const principal = Math.min(monthlyPayment - interest, balance);
+  // Payment must cover interest first, then remainder goes to principal
+  // Credit cards don't allow negative principal
+  const principal = Math.max(0, Math.min(monthlyPayment - interest, balance));
 
-  // New balance is reduced only by the principal portion
+  // New balance after payment
   const newBalance = Math.max(0, balance - principal);
-  const isPaidOff = newBalance <= 0.01; // Consider paid off if balance is less than 1 cent
+  const isPaidOff = newBalance <= 0.01;
 
-  // Actual payment is the amount actually needed: principal + interest
-  // When paid off, this will be less than or equal to monthlyPayment
+  // Actual payment is interest + principal
   const actualPayment = principal + interest;
 
   return {
@@ -88,59 +93,191 @@ function calculateDebtPaymentByType(
 }
 
 /**
- * Calculate payment for credit card debt
- * Uses standard amortization formula
- */
-function calculateCreditCardPayment(balance: number, interestRate: number, monthlyPayment: number) {
-  return calculateDebtPaymentByType(balance, interestRate, monthlyPayment, 'credit-card');
-}
-
-/**
  * Calculate payment for car loan
- * Uses standard amortization formula
+ * Car loans use simple interest amortization:
+ * - Interest is calculated on the remaining principal balance
+ * - Payment covers interest first, then principal
+ * - Typically fixed monthly payments based on original loan terms
+ * - When paying extra, excess goes directly to principal
  */
-function calculateCarLoanPayment(balance: number, interestRate: number, monthlyPayment: number) {
-  return calculateDebtPaymentByType(balance, interestRate, monthlyPayment, 'car');
+function calculateCarLoanPayment(
+  balance: number,
+  interestRate: number,
+  monthlyPayment: number,
+): DebtPaymentResult {
+  const monthlyInterestRate = interestRate / 100 / 12;
+
+  // Car loan interest is calculated on the outstanding principal balance
+  const interest = balance * monthlyInterestRate;
+
+  // Payment covers interest first, remainder goes to principal
+  const principal = Math.min(monthlyPayment - interest, balance);
+
+  // New balance after principal payment
+  const newBalance = Math.max(0, balance - principal);
+  const isPaidOff = newBalance <= 0.01;
+
+  // Actual payment amount
+  const actualPayment = principal + interest;
+
+  return {
+    interest: Math.round(interest * 100) / 100,
+    principal: Math.round(principal * 100) / 100,
+    newBalance: Math.round(newBalance * 100) / 100,
+    isPaidOff,
+    actualPayment: Math.round(actualPayment * 100) / 100,
+  };
 }
 
 /**
  * Calculate payment for mortgage
- * Uses standard amortization formula
+ * Mortgages use amortization schedules where:
+ * - Interest is calculated on the outstanding principal balance
+ * - Payment covers interest first, then principal
+ * - Typically fixed monthly payments (P&I) based on original loan terms
+ * - May include escrow (taxes/insurance) but we only calculate P&I here
+ * - When paying extra, excess goes directly to principal reduction
+ * - Mortgages often have different compounding (monthly is standard)
  */
-function calculateMortgagePayment(balance: number, interestRate: number, monthlyPayment: number) {
-  return calculateDebtPaymentByType(balance, interestRate, monthlyPayment, 'mortgage');
+function calculateMortgagePayment(
+  balance: number,
+  interestRate: number,
+  monthlyPayment: number,
+): DebtPaymentResult {
+  const monthlyInterestRate = interestRate / 100 / 12;
+
+  // Mortgage interest is calculated on the outstanding principal balance
+  // Standard mortgages compound monthly
+  const interest = balance * monthlyInterestRate;
+
+  // Payment covers interest first, remainder goes to principal
+  const principal = Math.min(monthlyPayment - interest, balance);
+
+  // New balance after principal payment
+  const newBalance = Math.max(0, balance - principal);
+  const isPaidOff = newBalance <= 0.01;
+
+  // Actual payment amount (P&I only, escrow not included)
+  const actualPayment = principal + interest;
+
+  return {
+    interest: Math.round(interest * 100) / 100,
+    principal: Math.round(principal * 100) / 100,
+    newBalance: Math.round(newBalance * 100) / 100,
+    isPaidOff,
+    actualPayment: Math.round(actualPayment * 100) / 100,
+  };
 }
 
 /**
  * Calculate payment for student loan
- * Uses standard amortization formula
+ * Student loans can be:
+ * - Federal: Simple interest, interest accrues daily but compounds monthly
+ * - Private: Similar to other installment loans
+ * - Payment covers interest first, then principal
+ * - May have different payment plans (standard, income-driven, etc.)
+ * For monthly calculations, we use monthly interest rate
  */
 function calculateStudentLoanPayment(
   balance: number,
   interestRate: number,
   monthlyPayment: number,
-) {
-  return calculateDebtPaymentByType(balance, interestRate, monthlyPayment, 'student-loan');
+): DebtPaymentResult {
+  const monthlyInterestRate = interestRate / 100 / 12;
+
+  // Student loan interest is calculated on the outstanding balance
+  // Federal loans accrue daily but we simplify to monthly for calculations
+  const interest = balance * monthlyInterestRate;
+
+  // Payment covers interest first, remainder goes to principal
+  const principal = Math.min(monthlyPayment - interest, balance);
+
+  // New balance after principal payment
+  const newBalance = Math.max(0, balance - principal);
+  const isPaidOff = newBalance <= 0.01;
+
+  // Actual payment amount
+  const actualPayment = principal + interest;
+
+  return {
+    interest: Math.round(interest * 100) / 100,
+    principal: Math.round(principal * 100) / 100,
+    newBalance: Math.round(newBalance * 100) / 100,
+    isPaidOff,
+    actualPayment: Math.round(actualPayment * 100) / 100,
+  };
 }
 
 /**
  * Calculate payment for personal loan
- * Uses standard amortization formula
+ * Personal loans typically use:
+ * - Simple interest amortization
+ * - Fixed monthly payments based on original loan terms
+ * - Interest calculated on outstanding balance
+ * - Payment covers interest first, then principal
+ * - Similar to car loans in structure
  */
 function calculatePersonalLoanPayment(
   balance: number,
   interestRate: number,
   monthlyPayment: number,
-) {
-  return calculateDebtPaymentByType(balance, interestRate, monthlyPayment, 'personal-loan');
+): DebtPaymentResult {
+  const monthlyInterestRate = interestRate / 100 / 12;
+
+  // Personal loan interest is calculated on the outstanding balance
+  const interest = balance * monthlyInterestRate;
+
+  // Payment covers interest first, remainder goes to principal
+  const principal = Math.min(monthlyPayment - interest, balance);
+
+  // New balance after principal payment
+  const newBalance = Math.max(0, balance - principal);
+  const isPaidOff = newBalance <= 0.01;
+
+  // Actual payment amount
+  const actualPayment = principal + interest;
+
+  return {
+    interest: Math.round(interest * 100) / 100,
+    principal: Math.round(principal * 100) / 100,
+    newBalance: Math.round(newBalance * 100) / 100,
+    isPaidOff,
+    actualPayment: Math.round(actualPayment * 100) / 100,
+  };
 }
 
 /**
  * Calculate payment for other loan types
- * Uses standard amortization formula
+ * Uses standard amortization: interest first, then principal
+ * This is a catch-all for any loan types not specifically categorized
  */
-function calculateOtherLoanPayment(balance: number, interestRate: number, monthlyPayment: number) {
-  return calculateDebtPaymentByType(balance, interestRate, monthlyPayment, 'other');
+function calculateOtherLoanPayment(
+  balance: number,
+  interestRate: number,
+  monthlyPayment: number,
+): DebtPaymentResult {
+  const monthlyInterestRate = interestRate / 100 / 12;
+
+  // Standard interest calculation on outstanding balance
+  const interest = balance * monthlyInterestRate;
+
+  // Payment covers interest first, remainder goes to principal
+  const principal = Math.min(monthlyPayment - interest, balance);
+
+  // New balance after principal payment
+  const newBalance = Math.max(0, balance - principal);
+  const isPaidOff = newBalance <= 0.01;
+
+  // Actual payment amount
+  const actualPayment = principal + interest;
+
+  return {
+    interest: Math.round(interest * 100) / 100,
+    principal: Math.round(principal * 100) / 100,
+    newBalance: Math.round(newBalance * 100) / 100,
+    isPaidOff,
+    actualPayment: Math.round(actualPayment * 100) / 100,
+  };
 }
 
 /**

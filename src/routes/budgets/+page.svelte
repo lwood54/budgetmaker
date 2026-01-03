@@ -11,7 +11,6 @@
   import { page } from '$app/state';
   import type { BudgetWithRelations } from '$lib/server/db/schema';
   import { formatCurrency } from '$lib/utils/money';
-  import { onMount } from 'svelte';
   import { Alert } from 'flowbite-svelte';
 
   const budgetsResult = $derived(await getBudgets());
@@ -59,10 +58,6 @@
     deleteModalOpen = false;
     budgetToDelete = null;
   }
-
-  onMount(() => {
-    getBudgets().refresh();
-  });
 
   // Calculate budget total amount (sum of category limits)
   function getBudgetAmount(budget: BudgetWithRelations): number {
