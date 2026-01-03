@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Select, Card } from 'flowbite-svelte';
+  import { Card } from 'flowbite-svelte';
+  import Select from '$lib/components/Select.svelte';
   import CreditCardCalculator from './components/credit-card-calculator.svelte';
   import type { Union } from '$lib/types/custom/utils';
   import AutoLoanCalculator from './components/auto-loan-calculator.svelte';
@@ -13,9 +14,9 @@
   type Calculator = Union<typeof CALCULATOR>;
   let selectedCalculator = $state<Calculator>(CALCULATOR.CREDIT);
   const calculators = [
-    { value: CALCULATOR.CREDIT, label: 'Credit Card' },
-    { value: CALCULATOR.AUTO, label: 'Auto Loan' },
-    { value: CALCULATOR.MORTGAGE, label: 'Mortgage' },
+    { value: CALCULATOR.CREDIT, name: 'Credit Card' },
+    { value: CALCULATOR.AUTO, name: 'Auto Loan' },
+    { value: CALCULATOR.MORTGAGE, name: 'Mortgage' },
   ];
 </script>
 
@@ -23,14 +24,11 @@
   <div class="mx-auto mb-6 w-full">
     <Select
       size="lg"
-      classes={{ select: 'h-12' }}
+      items={calculators}
       bind:value={selectedCalculator}
+      placeholder="Select a calculator"
       class="w-full text-lg md:w-1/3"
-    >
-      {#each calculators as calculator}
-        <option value={calculator.value}>{calculator.label}</option>
-      {/each}
-    </Select>
+    />
   </div>
 
   <Card class="w-full" size="xl">

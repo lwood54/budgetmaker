@@ -1,19 +1,71 @@
 <script lang="ts">
-  import { Button, P } from 'flowbite-svelte';
-  import type { RecurringExpense } from '../helpers';
+  import { onMount } from 'svelte';
+  import { P } from 'flowbite-svelte';
+  import EditIcon from '$lib/components/EditIcon.svelte';
+  import DeleteIcon from '$lib/components/DeleteIcon.svelte';
+  import AddIcon from '$lib/components/AddIcon.svelte';
+  import {
+    getAllRecurringExpenses,
+    deleteRecurringExpense,
+    getActiveScenarioId,
+    type RecurringExpense,
+  } from '../helpers';
 
-  let {
-    recurringExpenses = $bindable([]),
-    onAddClick = () => {},
-    onDelete = () => {},
-    onEdit = () => {},
-  } = $props();
+  let { onAddClick = () => {}, onDelete = () => {}, onEdit = () => {} } = $props();
+
+  let recurringExpenses = $state<RecurringExpense[]>([]);
+  let previousScenarioId = $state<string | null>(null);
+
+  function loadData() {
+    recurringExpenses = getAllRecurringExpenses();
+    previousScenarioId = getActiveScenarioId();
+  }
+
+  // Calculate totals
+  const totalExpenses = $derived(
+    recurringExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+  );
+
+  // Watch for scenario changes
+  $effect(() => {
+    const currentScenarioId = getActiveScenarioId();
+    if (currentScenarioId !== previousScenarioId) {
+      loadData();
+    }
+  });
+
+  function handleDelete(id: string) {
+    deleteRecurringExpense(id);
+    loadData();
+    onDelete(id);
+  }
+
+  onMount(() => {
+    loadData();
+
+    // Listen for data changes from drawers
+    function handleDataChange() {
+      loadData();
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('paydown-data-changed', handleDataChange);
+      return () => {
+        window.removeEventListener('paydown-data-changed', handleDataChange);
+      };
+    }
+  });
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
   <div class="flex items-center justify-between">
-    <P size="lg">Recurring Expenses</P>
-    <Button size="sm" onclick={() => onAddClick()}>Add Recurring Expense</Button>
+    <div class="flex flex-col gap-1">
+      <P size="lg">Recurring Expenses</P>
+      <P size="sm" class="text-neutral-600 dark:text-neutral-400">
+        Total: ${totalExpenses.toLocaleString()}
+      </P>
+    </div>
+    <AddIcon onclick={() => onAddClick()} ariaLabel="Add Recurring Expense" />
   </div>
 
   {#if recurringExpenses.length > 0}
@@ -28,9 +80,12 @@
               ${expense.amount.toLocaleString()}/mo
             </P>
           </div>
-          <div class="flex gap-2">
-            <Button size="sm" onclick={() => onEdit(expense)}>Edit</Button>
-            <Button color="red" size="sm" onclick={() => onDelete(expense.id)}>Delete</Button>
+          <div class="flex items-center gap-2">
+            <EditIcon onclick={() => onEdit(expense)} ariaLabel="Edit recurring expense" />
+            <DeleteIcon
+              onclick={() => handleDelete(expense.id)}
+              ariaLabel="Delete recurring expense"
+            />
           </div>
         </div>
       {/each}

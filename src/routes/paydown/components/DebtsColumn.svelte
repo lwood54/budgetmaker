@@ -1,19 +1,70 @@
 <script lang="ts">
-  import { Button, P } from 'flowbite-svelte';
-  import { sortDebtsByPriority, type PaydownDebt } from '../helpers';
+  import { onMount } from 'svelte';
+  import { P } from 'flowbite-svelte';
+  import EditIcon from '$lib/components/EditIcon.svelte';
+  import DeleteIcon from '$lib/components/DeleteIcon.svelte';
+  import AddIcon from '$lib/components/AddIcon.svelte';
+  import {
+    getAllDebts,
+    deleteDebt,
+    getActiveScenarioId,
+    sortDebtsByPriority,
+    type PaydownDebt,
+  } from '../helpers';
 
-  let {
-    debts = $bindable([]),
-    onAddClick = () => {},
-    onDelete = () => {},
-    onEdit = () => {},
-  } = $props();
+  let { onAddClick = () => {}, onDelete = () => {}, onEdit = () => {} } = $props();
+
+  let debts = $state<PaydownDebt[]>([]);
+  let previousScenarioId = $state<string | null>(null);
+
+  function loadData() {
+    debts = getAllDebts();
+    previousScenarioId = getActiveScenarioId();
+  }
+
+  // Calculate totals
+  const totalDebt = $derived(debts.reduce((sum, debt) => sum + debt.amount, 0));
+
+  // Watch for scenario changes
+  $effect(() => {
+    const currentScenarioId = getActiveScenarioId();
+    if (currentScenarioId !== previousScenarioId) {
+      loadData();
+    }
+  });
+
+  function handleDelete(id: string) {
+    deleteDebt(id);
+    loadData();
+    onDelete(id);
+  }
+
+  onMount(() => {
+    loadData();
+
+    // Listen for data changes from drawers
+    function handleDataChange() {
+      loadData();
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('paydown-data-changed', handleDataChange);
+      return () => {
+        window.removeEventListener('paydown-data-changed', handleDataChange);
+      };
+    }
+  });
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
   <div class="flex items-center justify-between">
-    <P size="lg">Paydown Debts</P>
-    <Button size="sm" onclick={() => onAddClick()}>Add Debt</Button>
+    <div class="flex flex-col gap-1">
+      <P size="lg">Paydown Debts</P>
+      <P size="sm" class="text-neutral-600 dark:text-neutral-400">
+        Total: ${totalDebt.toLocaleString()}
+      </P>
+    </div>
+    <AddIcon onclick={() => onAddClick()} ariaLabel="Add Debt" />
   </div>
 
   {#if debts.length > 0}
@@ -29,9 +80,9 @@
               | Priority: {debt.priority || 0}
             </P>
           </div>
-          <div class="flex gap-2">
-            <Button size="sm" onclick={() => onEdit(debt)}>Edit</Button>
-            <Button color="red" size="sm" onclick={() => onDelete(debt.id)}>Delete</Button>
+          <div class="flex items-center gap-2">
+            <EditIcon onclick={() => onEdit(debt)} ariaLabel="Edit debt" />
+            <DeleteIcon onclick={() => handleDelete(debt.id)} ariaLabel="Delete debt" />
           </div>
         </div>
       {/each}

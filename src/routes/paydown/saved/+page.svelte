@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Button, P, Select, Modal } from 'flowbite-svelte';
+  import { Button, P, Modal } from 'flowbite-svelte';
+  import Select from '$lib/components/Select.svelte';
   import GeneratePlan from '../components/GeneratePlan.svelte';
   import { getAllSavedPlans, deleteSavedPlan, type SavedPlan } from '../helpers';
   import { page } from '$app/state';
@@ -17,7 +18,6 @@
   }
 
   function handleSavedPlanChange(planId: string | null) {
-    selectedSavedPlanId = planId;
     // Update URL without navigation
     if (planId) {
       goto(`/paydown/saved?plan=${planId}`, { replaceState: true, noScroll: true });
@@ -25,6 +25,13 @@
       goto('/paydown/saved', { replaceState: true, noScroll: true });
     }
   }
+
+  // Watch for value changes
+  $effect(() => {
+    if (selectedSavedPlanId !== null) {
+      handleSavedPlanChange(selectedSavedPlanId);
+    }
+  });
 
   function handleSavedPlanUpdate(planId: string) {
     loadSavedPlans();
@@ -67,7 +74,13 @@
       const plan = savedPlans.find((p) => p.id === planId);
       if (plan) {
         selectedSavedPlanId = planId;
+      } else if (savedPlans.length > 0) {
+        // If URL plan doesn't exist, default to first plan
+        selectedSavedPlanId = savedPlans[0].id;
       }
+    } else if (savedPlans.length > 0) {
+      // No plan in URL, default to first plan
+      selectedSavedPlanId = savedPlans[0].id;
     }
   });
 
@@ -78,27 +91,26 @@
       const plan = savedPlans.find((p) => p.id === planId);
       if (plan && selectedSavedPlanId !== planId) {
         selectedSavedPlanId = planId;
+      } else if (!plan && savedPlans.length > 0 && !selectedSavedPlanId) {
+        // If URL plan doesn't exist and nothing is selected, default to first plan
+        selectedSavedPlanId = savedPlans[0].id;
       }
+    } else if (!planId && savedPlans.length > 0 && !selectedSavedPlanId) {
+      // No plan in URL and nothing selected, default to first plan
+      selectedSavedPlanId = savedPlans[0].id;
     }
   });
 </script>
 
 <div class="flex w-full flex-col gap-4">
   {#if savedPlans.length > 0}
-    <div
-      class="rounded-lg border-2 border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50"
-    >
-      <div class="flex items-center gap-3">
-        <P size="sm" class="w-32 font-semibold">Select Plan:</P>
-        <Select
-          items={savedPlans.map((p) => ({ value: p.id, name: p.name }))}
-          bind:value={selectedSavedPlanId}
-          onchange={() => {
-            handleSavedPlanChange(selectedSavedPlanId);
-          }}
-          class="flex-1"
-        />
-      </div>
+    <div class="flex items-center gap-3">
+      <Select
+        items={savedPlans.map((p) => ({ value: p.id, name: p.name }))}
+        bind:value={selectedSavedPlanId}
+        class="w-72"
+        placeholder="Select Plan"
+      />
     </div>
     {#if selectedSavedPlanId}
       {@const selectedPlan = savedPlans.find((p) => p.id === selectedSavedPlanId)}

@@ -176,3 +176,14 @@ body {
   border-color: rgb(96 165 250) !important;
   background-color: transparent !important;
 }
+
+/* Add button styles - primary outline on hover */
+.add-btn:hover {
+  border: 2px solid rgb(20 184 166) !important;
+  background-color: transparent !important;
+}
+
+.dark .add-btn:hover {
+  border-color: rgb(45 212 191) !important;
+  background-color: transparent !important;
+}

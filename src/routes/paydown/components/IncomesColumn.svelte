@@ -1,19 +1,96 @@
 <script lang="ts">
-  import { Button, P } from 'flowbite-svelte';
-  import type { MonthlyIncome } from '../helpers';
+  import { onMount } from 'svelte';
+  import { P } from 'flowbite-svelte';
+  import EditIcon from '$lib/components/EditIcon.svelte';
+  import DeleteIcon from '$lib/components/DeleteIcon.svelte';
+  import AddIcon from '$lib/components/AddIcon.svelte';
+  import {
+    getAllIncomes,
+    getAllDebts,
+    getAllRecurringExpenses,
+    deleteIncome,
+    getActiveScenarioId,
+    type MonthlyIncome,
+  } from '../helpers';
 
-  let {
-    incomes = $bindable([]),
-    onAddClick = () => {},
-    onDelete = () => {},
-    onEdit = () => {},
-  } = $props();
+  let { onAddClick = () => {}, onDelete = () => {}, onEdit = () => {} } = $props();
+
+  let incomes = $state<MonthlyIncome[]>([]);
+  let previousScenarioId = $state<string | null>(null);
+
+  function loadData() {
+    incomes = getAllIncomes();
+    previousScenarioId = getActiveScenarioId();
+  }
+
+  // Calculate totals
+  const totalIncome = $derived(incomes.reduce((sum, income) => sum + income.amount, 0));
+
+  // Calculate remaining (need debts and expenses for this)
+  let debts = $state<ReturnType<typeof getAllDebts>>([]);
+  let expenses = $state<ReturnType<typeof getAllRecurringExpenses>>([]);
+  const totalMonthlyPayments = $derived(debts.reduce((sum, debt) => sum + debt.monthlyPayment, 0));
+  const totalExpenses = $derived(expenses.reduce((sum, expense) => sum + expense.amount, 0));
+  const remaining = $derived(totalIncome - totalMonthlyPayments - totalExpenses);
+
+  function loadDebtsAndExpenses() {
+    debts = getAllDebts();
+    expenses = getAllRecurringExpenses();
+  }
+
+  // Watch for scenario changes
+  $effect(() => {
+    const currentScenarioId = getActiveScenarioId();
+    if (currentScenarioId !== previousScenarioId) {
+      loadData();
+      loadDebtsAndExpenses();
+    }
+  });
+
+  function handleDelete(id: string) {
+    deleteIncome(id);
+    loadData();
+    onDelete(id);
+  }
+
+  onMount(() => {
+    loadData();
+    loadDebtsAndExpenses();
+
+    // Listen for data changes from drawers
+    function handleDataChange() {
+      loadData();
+      loadDebtsAndExpenses();
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('paydown-data-changed', handleDataChange);
+      return () => {
+        window.removeEventListener('paydown-data-changed', handleDataChange);
+      };
+    }
+  });
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
   <div class="flex items-center justify-between">
-    <P size="lg">Monthly Incomes</P>
-    <Button size="sm" onclick={() => onAddClick()}>Add Income</Button>
+    <div class="flex flex-col gap-1">
+      <P size="lg">Monthly Incomes</P>
+      <div class="flex gap-4">
+        <P size="sm" class="text-neutral-600 dark:text-neutral-400">
+          Total: ${totalIncome.toLocaleString()}
+        </P>
+        <P
+          size="sm"
+          class={`font-semibold ${
+            remaining >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
+          }`}
+        >
+          Remaining: ${remaining.toLocaleString()}
+        </P>
+      </div>
+    </div>
+    <AddIcon onclick={() => onAddClick()} ariaLabel="Add Income" />
   </div>
 
   {#if incomes.length > 0}
@@ -28,9 +105,9 @@
               ${income.amount.toLocaleString()}/mo
             </P>
           </div>
-          <div class="flex gap-2">
-            <Button size="sm" onclick={() => onEdit(income)}>Edit</Button>
-            <Button color="red" size="sm" onclick={() => onDelete(income.id)}>Delete</Button>
+          <div class="flex items-center gap-2">
+            <EditIcon onclick={() => onEdit(income)} ariaLabel="Edit income" />
+            <DeleteIcon onclick={() => handleDelete(income.id)} ariaLabel="Delete income" />
           </div>
         </div>
       {/each}

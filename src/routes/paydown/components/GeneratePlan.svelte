@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Button, P, Datepicker, Input, Hr, Select, Modal, Label } from 'flowbite-svelte';
+  import { Button, P, Datepicker, Input, Modal, Label } from 'flowbite-svelte';
+  import Select from '$lib/components/Select.svelte';
   import { QuestionCircleOutline } from 'flowbite-svelte-icons';
   import {
     getAllDebts,
@@ -606,6 +607,13 @@
     }
   });
 
+  // Watch for scenario changes
+  $effect(() => {
+    if (selectedScenarioId && !isViewingSavedPlan) {
+      handleScenarioChange(selectedScenarioId);
+    }
+  });
+
   onMount(() => {
     // If savedPlanId prop is provided, load that saved plan first (skip scenario loading)
     if (savedPlanId) {
@@ -622,27 +630,6 @@
 </script>
 
 <div class="flex w-full flex-col gap-4">
-  <!-- Scenario Selector (hidden when viewing saved plan) -->
-  {#if !isViewingSavedPlan && scenarios.length > 0}
-    <div
-      class="rounded-lg border-2 border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50"
-    >
-      <div class="flex items-center gap-3">
-        <P size="sm" class="w-32 font-semibold">Base Scenario:</P>
-        <Select
-          items={scenarios.map((s) => ({ value: s.id, name: s.name }))}
-          bind:value={selectedScenarioId}
-          onchange={() => {
-            if (selectedScenarioId) {
-              handleScenarioChange(selectedScenarioId);
-            }
-          }}
-          class="flex-1"
-        />
-      </div>
-    </div>
-  {/if}
-
   {#if isViewingSavedPlan}
     <!-- Saved Plan Details Display -->
     <div
@@ -683,6 +670,15 @@
     <!-- Plan Generation Inputs -->
     <div class="flex w-full flex-col gap-4 p-4">
       <div class="flex w-76 flex-col justify-start gap-4 lg:w-full lg:flex-row">
+        {#if scenarios.length > 0}
+          <div class="flex items-center gap-2">
+            <P size="sm">Scenario:</P>
+            <Select
+              items={scenarios.map((s) => ({ value: s.id, name: s.name }))}
+              bind:value={selectedScenarioId}
+            />
+          </div>
+        {/if}
         <div class="flex items-center gap-2">
           <P size="sm" class="w-24">Start Date:</P>
           <Datepicker class="z-1000" color="primary" bind:value={planStartDate} autohide />
@@ -704,7 +700,7 @@
                 ></div>
               </div>
             </div>
-            <P size="sm" class="w-38">Years to Plan:</P>
+            <P size="sm" class="w-24">Years to Plan:</P>
           </div>
           <Input
             type="number"
@@ -742,7 +738,6 @@
       </div>
     </div>
   {/if}
-  <Hr class="my-4" />
   <PaymentPlanGrid
     {paymentPlan}
     {debts}
