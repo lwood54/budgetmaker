@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button } from 'flowbite-svelte';
-  import { TrashBinOutline } from 'flowbite-svelte-icons';
+  import { PlusOutline } from 'flowbite-svelte-icons';
 
   type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
@@ -9,16 +9,14 @@
     disabled?: boolean;
     ariaLabel?: string;
     class?: string;
-    iconClass?: string;
     size?: IconSize;
   }
 
   let {
     onclick,
     disabled = false,
-    ariaLabel = 'Delete',
+    ariaLabel = 'Add',
     class: className = '',
-    iconClass = '',
     size = 'md',
   }: Props = $props();
 
@@ -54,14 +52,14 @@
 </script>
 
 <Button
-  color="red"
+  color="primary"
   size="xs"
   pill
   outline
-  class={`delete-btn border-none p-0 shadow-sm transition-all hover:shadow-md ${sizeClasses().button} ${className}`}
+  class={`add-btn border-none p-0 shadow-sm transition-all hover:bg-transparent hover:shadow-md ${sizeClasses().button} ${className}`}
   {onclick}
   {disabled}
   aria-label={ariaLabel}
 >
-  <TrashBinOutline class={`${iconClass || sizeClasses().icon} text-red-600 dark:text-red-400`} />
+  <PlusOutline class={`${sizeClasses().icon} text-primary-600 dark:text-primary-400`} />
 </Button>

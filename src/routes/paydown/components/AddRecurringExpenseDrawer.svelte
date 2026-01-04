@@ -1,119 +1,53 @@
 <script lang="ts">
-  import { Button, P, Drawer } from 'flowbite-svelte';
-  import { addRecurringExpense, updateRecurringExpense, type RecurringExpense } from '../helpers';
+  import { P, Drawer, Button, Label } from 'flowbite-svelte';
+  import {
+    createPaydownRecurringExpense,
+    updatePaydownRecurringExpense,
+    getRecurringExpenses,
+  } from '$lib/api/paydown.remote';
+  import Input from '$lib/components/Input.svelte';
+  import type { RecurringExpense } from '../helpers';
+
+  type Props = {
+    open?: boolean;
+    onSuccess?: () => void;
+    editingExpense?: RecurringExpense | null;
+    activeScenarioId?: string | null;
+  };
 
   let {
     open = $bindable(false),
     onSuccess = () => {},
     editingExpense = $bindable<RecurringExpense | null>(null),
-  } = $props();
+    activeScenarioId = null,
+  }: Props = $props();
 
-  // Recurring expense form fields
-  let expenseTitle = $state('');
-  let expenseAmount = $state('');
-
-  // Validation state
-  let titleError = $state('');
-  let amountError = $state('');
-
-  // Check if we're in edit mode
   const isEditMode = $derived(editingExpense !== null);
+  const initialTitle = $derived(editingExpense?.title ?? '');
+  const initialAmount = $derived(editingExpense?.amount.toString() ?? '');
+  let isSubmitting = $state(false);
+  let formRef = $state<HTMLFormElement | null>(null);
+  let dirtyFields = $state({ title: false, amount: false });
 
-  // Load data when editing
+  const remoteForm = $derived(
+    isEditMode ? updatePaydownRecurringExpense : createPaydownRecurringExpense,
+  );
+
   $effect(() => {
-    if (open && editingExpense) {
-      expenseTitle = editingExpense.title;
-      expenseAmount = editingExpense.amount.toString();
-      titleError = '';
-      amountError = '';
-    } else if (open && !editingExpense) {
-      // Reset form for add mode
-      clearForm();
+    if (!open) {
+      formRef?.reset();
+      dirtyFields = { title: false, amount: false };
     }
   });
 
-  function clearForm() {
-    expenseTitle = '';
-    expenseAmount = '';
-    titleError = '';
-    amountError = '';
-  }
-
-  function validateForm(): boolean {
-    titleError = '';
-    amountError = '';
-
-    if (!expenseTitle.trim()) {
-      titleError = 'Title is required';
-      return false;
-    }
-
-    const amount = parseFloat(expenseAmount);
-    if (isNaN(amount) || amount < 0) {
-      amountError = 'Amount must be a valid number greater than or equal to 0';
-      return false;
-    }
-
-    return true;
-  }
-
-  function saveExpense(): boolean {
-    if (!validateForm()) return false;
-
-    const amount = parseFloat(expenseAmount) || 0;
-
-    if (isEditMode && editingExpense) {
-      // Update existing expense
-      updateRecurringExpense(editingExpense.id, {
-        title: expenseTitle.trim(),
-        amount: amount,
-      });
-    } else {
-      // Add new expense
-      addRecurringExpense({
-        title: expenseTitle.trim(),
-        amount: amount,
-      });
-    }
-
-    // Notify parent to reload
-    onSuccess();
-    return true;
-  }
-
   function handleCancel() {
-    clearForm();
-    editingExpense = null;
     open = false;
-  }
-
-  function handleUpdate() {
-    const success = saveExpense();
-    if (success) {
-      // Always close drawer after successful update in edit mode
-      clearForm();
-      editingExpense = null;
-      open = false;
-    }
-  }
-
-  function handleDone() {
-    saveExpense();
-    clearForm();
     editingExpense = null;
-    open = false;
-  }
-
-  function handleAddAnother() {
-    saveExpense();
-    clearForm();
-    // Keep drawer open
   }
 </script>
 
 <Drawer bind:open placement="right" class="z-50">
   <div class="flex max-h-[100vh] w-full max-w-md flex-col bg-white dark:bg-neutral-800">
-    <!-- Header -->
     <div
       class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
     >
@@ -122,59 +56,96 @@
       </P>
     </div>
 
-    <!-- Form Content -->
     <div class="flex-1 overflow-y-auto px-4 py-4">
       <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          if (isEditMode) {
-            handleUpdate();
-          } else {
-            handleAddAnother();
+        bind:this={formRef}
+        {...remoteForm.enhance(async ({ form: formElement, submit }) => {
+          isSubmitting = true;
+          try {
+            await submit();
+
+            if (remoteForm.result?.success === true) {
+              formElement.reset();
+              if (activeScenarioId) {
+                await getRecurringExpenses(activeScenarioId).refresh();
+              }
+              open = false;
+              editingExpense = null;
+              dirtyFields = { title: false, amount: false };
+              onSuccess();
+            }
+          } catch (error) {
+            console.error('Error submitting form:', error);
+            formElement.reset();
+          } finally {
+            isSubmitting = false;
           }
-        }}
+        })}
         class="flex flex-col gap-4"
       >
+        {#if isEditMode}
+          <input type="hidden" name="expenseId" value={editingExpense?.id} />
+        {:else}
+          <input type="hidden" name="scenarioId" value={activeScenarioId ?? ''} />
+        {/if}
         <div>
-          <P size="sm" class="mb-2">Title</P>
-          <input
-            type="text"
-            bind:value={expenseTitle}
-            class="w-full rounded border px-3 py-2 text-neutral-900 {titleError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+          <Label for="expense-title" class="mb-2 block">Title</Label>
+          <Input
+            field={remoteForm.fields.title}
+            isDirty={dirtyFields.title}
+            id="expense-title"
+            name="title"
+            initialValue={initialTitle}
+            placeholder="Enter expense title"
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.title = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if titleError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{titleError}</P>
-          {/if}
         </div>
         <div>
-          <P size="sm" class="mb-2">Monthly Amount</P>
-          <input
+          <Label for="expense-amount" class="mb-2 block">Monthly Amount</Label>
+          <Input
+            field={remoteForm.fields.amount}
+            isDirty={dirtyFields.amount}
+            id="expense-amount"
+            name="amount"
             type="number"
-            bind:value={expenseAmount}
             step="0.01"
             min="0"
-            class="w-full rounded border px-3 py-2 text-neutral-900 {amountError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+            initialValue={initialAmount}
+            placeholder="Enter monthly amount"
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.amount = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if amountError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{amountError}</P>
-          {/if}
         </div>
-        <div class="flex flex-col gap-4 pt-4">
-          <Button type="button" color="alternative" class="w-full" onclick={handleCancel}>
+        <div class="flex gap-3 pt-4">
+          <Button
+            type="button"
+            color="alternative"
+            onclick={handleCancel}
+            disabled={isSubmitting}
+            class="flex-1"
+          >
             Cancel
           </Button>
-          {#if isEditMode}
-            <Button type="button" class="w-full" onclick={handleUpdate}>Update</Button>
-          {:else}
-            <Button type="submit" class="w-full">Add Another</Button>
-            <Button type="button" class="w-full" onclick={handleDone}>Done</Button>
-          {/if}
+          <Button
+            type="submit"
+            onclick={() => {
+              dirtyFields = { title: true, amount: true };
+            }}
+            color="primary"
+            disabled={isSubmitting}
+            class="flex-1"
+          >
+            {isSubmitting ? 'Saving...' : isEditMode ? 'Save' : 'Add Expense'}
+          </Button>
         </div>
       </form>
     </div>
