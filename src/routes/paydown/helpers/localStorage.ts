@@ -918,10 +918,18 @@ export function updateSavedPlan(
     return null;
   }
 
+  const planStartDateValue = updates.planStartDate
+    ? updates.planStartDate instanceof Date
+      ? updates.planStartDate.toISOString()
+      : typeof updates.planStartDate === 'string'
+        ? updates.planStartDate
+        : plans[index].planStartDate
+    : plans[index].planStartDate;
+
   const updatedPlan: SavedPlan = {
     ...plans[index],
     ...updates,
-    ...(updates.planStartDate && { planStartDate: updates.planStartDate.toISOString() }),
+    planStartDate: planStartDateValue,
     updatedAt: new Date().toISOString(),
   };
 

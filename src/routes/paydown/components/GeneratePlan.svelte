@@ -1,24 +1,20 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Button, P, Datepicker, Input, Modal, Label } from 'flowbite-svelte';
+  import { Button, P, Datepicker, Input, Modal, Label, Alert } from 'flowbite-svelte';
   import Select from '$lib/components/Select.svelte';
   import { QuestionCircleOutline } from 'flowbite-svelte-icons';
   import {
-    getAllDebts,
-    getAllIncomes,
-    getAllRecurringExpenses,
-    getAllScenarios,
-    getActiveScenarioId,
-    setActiveScenarioId,
-    getAllSavedPlans,
-    createSavedPlan,
-    updateSavedPlan,
-    type PaydownDebt,
-    type MonthlyIncome,
-    type RecurringExpense,
-    type PaydownScenario,
-    type SavedPlan,
-  } from '../helpers/localStorage';
+    getDebts,
+    getIncomes,
+    getRecurringExpenses,
+    getScenarios,
+    getSavedPlans,
+    getSavedPlan,
+    createPaydownSavedPlan,
+    updatePaydownSavedPlan,
+  } from '$lib/api/paydown.remote';
+  import type { PaydownScenario } from '$lib/server/db/schema';
+  import { type SavedPlan } from '../helpers';
   import {
     generateSnowballPlan,
     recalculatePlanFromMonth,
@@ -42,14 +38,139 @@
   let yearsToPlan = $state(5);
   let additionalSnowball = $state('');
 
-  // Scenario management
-  let scenarios = $state<PaydownScenario[]>([]);
-  let selectedScenarioId = $state<string | null>(null);
+  // Saved plan state (declare early so it can be used in derived values)
+  let currentSavedPlanId = $state<string | null>(savedPlanId);
+  let showSavePlanModal = $state(false);
+  let savePlanName = $state('');
+  let savePlanError = $state('');
+  let isViewingSavedPlan = $derived(currentSavedPlanId !== null);
+  let pendingPlanName = $state<string | null>(null);
 
-  // Data from localStorage (based on selected scenario)
-  let debts = $state<PaydownDebt[]>([]);
-  let incomes = $state<MonthlyIncome[]>([]);
-  let recurringExpenses = $state<RecurringExpense[]>([]);
+  // Track original saved plan state to detect unsaved changes
+  let originalSavedPlanState = $state<{
+    paymentPlan: MonthlyPaymentPlan[];
+    manuallyEditedPayments: Record<number, Record<string, number>>;
+    manuallyEditedIncomes: Record<number, Record<string, number>>;
+    manuallyEditedRecurringExpenses: Record<number, Record<string, number>>;
+  } | null>(null);
+
+  // Track if there are unsaved changes - use a function instead of derived to avoid expensive comparisons
+  // Only check when explicitly needed (e.g., when rendering the button)
+  function hasUnsavedChanges(): boolean {
+    if (!isViewingSavedPlan || !originalSavedPlanState) return false;
+
+    // Quick reference comparison first
+    if (paymentPlan.length !== originalSavedPlanState.paymentPlan.length) return true;
+
+    // Only do expensive comparison if lengths match
+    try {
+      if (JSON.stringify(paymentPlan) !== JSON.stringify(originalSavedPlanState.paymentPlan)) {
+        return true;
+      }
+
+      if (
+        JSON.stringify(manuallyEditedPayments) !==
+        JSON.stringify(originalSavedPlanState.manuallyEditedPayments)
+      ) {
+        return true;
+      }
+
+      if (
+        JSON.stringify(manuallyEditedIncomes) !==
+        JSON.stringify(originalSavedPlanState.manuallyEditedIncomes)
+      ) {
+        return true;
+      }
+
+      if (
+        JSON.stringify(manuallyEditedRecurringExpenses) !==
+        JSON.stringify(originalSavedPlanState.manuallyEditedRecurringExpenses)
+      ) {
+        return true;
+      }
+    } catch {
+      // If JSON.stringify fails, assume there are changes
+      return true;
+    }
+
+    return false;
+  }
+
+  // Only load scenarios and saved plans when NOT viewing a saved plan
+  // This prevents unnecessary waterfalls and queries
+  const scenarios = $derived(isViewingSavedPlan ? [] : ((await getScenarios()) ?? []));
+  const savedPlans = $derived(isViewingSavedPlan ? [] : ((await getSavedPlans()) ?? []));
+
+  // Scenario selection state (matching Setup page pattern)
+  let selectedScenarioId = $state<string>('');
+  let activeScenario = $state<PaydownScenario | null>(null);
+
+  // Watch for newly created plan after refresh
+  $effect(() => {
+    if (pendingPlanName && savedPlans.length > 0) {
+      const newPlan = savedPlans.find((p) => p.name === pendingPlanName?.trim());
+      if (newPlan) {
+        pendingPlanName = null;
+        showSavePlanModal = false;
+        savePlanName = '';
+        savePlanError = '';
+
+        // If not viewing a saved plan, clear the generate plan view and notify parent
+        if (!isViewingSavedPlan) {
+          // Clear the plan state
+          paymentPlan = [];
+          editedPayments = {};
+          originalPayments = {};
+          manuallyEditedPayments = {};
+          editedIncomes = {};
+          originalIncomes = {};
+          manuallyEditedIncomes = {};
+          editedRecurringExpenses = {};
+          originalRecurringExpenses = {};
+          manuallyEditedRecurringExpenses = {};
+          currentSavedPlanId = null;
+
+          // Notify parent to switch to saved plans tab and load the new plan
+          onPlanSaved?.(newPlan.id);
+        } else {
+          // If viewing a saved plan, just update it
+          currentSavedPlanId = newPlan.id;
+          onSavedPlanUpdate?.(newPlan.id);
+        }
+      }
+    }
+  });
+
+  // Load data for selected scenario (or use saved plan data if viewing saved plan)
+  let savedPlanDebts = $state<any[]>([]);
+  let savedPlanIncomes = $state<any[]>([]);
+  let savedPlanExpenses = $state<any[]>([]);
+
+  // When viewing saved plan, use saved plan data directly (no async queries)
+  // When generating plan, use remote queries
+  const debts = $derived(
+    isViewingSavedPlan
+      ? savedPlanDebts
+      : activeScenario
+        ? ((await getDebts(activeScenario.uuid)) ?? [])
+        : [],
+  );
+
+  const incomes = $derived(
+    isViewingSavedPlan
+      ? savedPlanIncomes
+      : activeScenario
+        ? ((await getIncomes(activeScenario.uuid)) ?? [])
+        : [],
+  );
+
+  const recurringExpenses = $derived(
+    isViewingSavedPlan
+      ? savedPlanExpenses
+      : activeScenario
+        ? ((await getRecurringExpenses(activeScenario.uuid)) ?? [])
+        : [],
+  );
 
   // Payment plan state
   let paymentPlan = $state<MonthlyPaymentPlan[]>([]);
@@ -67,44 +188,10 @@
   let originalRecurringExpenses = $state<Record<number, Record<string, number>>>({});
   let manuallyEditedRecurringExpenses = $state<Record<number, Record<string, number>>>({});
 
-  // Saved plan state
-  let currentSavedPlanId = $state<string | null>(savedPlanId);
-  let showSavePlanModal = $state(false);
-  let savePlanName = $state('');
-  let isViewingSavedPlan = $derived(currentSavedPlanId !== null);
-
-  function loadScenarios() {
-    scenarios = getAllScenarios();
-    const activeId = getActiveScenarioId();
-    if (activeId && scenarios.some((s) => s.id === activeId)) {
-      selectedScenarioId = activeId;
-    } else if (scenarios.length > 0) {
-      selectedScenarioId = scenarios[0].id;
-      setActiveScenarioId(scenarios[0].id);
-    } else {
-      selectedScenarioId = null;
-    }
-  }
-
-  function loadDataForScenario(scenarioId: string | null) {
-    if (!scenarioId) {
-      debts = [];
-      incomes = [];
-      recurringExpenses = [];
-      return;
-    }
-
-    // Set the scenario as active so getAll* functions work correctly
-    setActiveScenarioId(scenarioId);
-    debts = getAllDebts();
-    incomes = getAllIncomes();
-    recurringExpenses = getAllRecurringExpenses();
-  }
-
   function handleScenarioChange(scenarioId: string) {
-    selectedScenarioId = scenarioId;
-    setActiveScenarioId(scenarioId);
-    loadDataForScenario(scenarioId);
+    const matchingScenario = scenarios.find((s) => s.uuid === scenarioId);
+    activeScenario = matchingScenario ?? null;
+
     // Clear plan when switching scenarios (unless viewing saved plan)
     if (!isViewingSavedPlan) {
       paymentPlan = [];
@@ -379,19 +466,32 @@
       originalRecurringExpenses = { ...originalRecurringExpenses };
     }
 
-    // Update saved plan if viewing one
-    if (currentSavedPlanId) {
-      updateSavedPlan(currentSavedPlanId, {
-        debts,
-        incomes,
-        recurringExpenses,
-        paymentPlan,
-        manuallyEditedPayments,
-        manuallyEditedIncomes,
-        manuallyEditedRecurringExpenses,
-      });
-      onSavedPlanUpdate?.(currentSavedPlanId);
-    }
+    // Don't auto-save - let user click "Save Changes" button instead
+    // This prevents cascading reactive updates that cause performance issues
+  }
+
+  function handleSaveChanges() {
+    if (!currentSavedPlanId || !updatePlanFormRef) return;
+
+    const planId = currentSavedPlanId;
+
+    // Update hidden form inputs
+    const setInput = (name: string, value: string) => {
+      const input = updatePlanFormRef!.querySelector(`input[name="${name}"]`) as HTMLInputElement;
+      if (input) input.value = value;
+    };
+
+    setInput('planId', planId);
+    setInput('debts', JSON.stringify(debts));
+    setInput('incomes', JSON.stringify(incomes));
+    setInput('recurringExpenses', JSON.stringify(recurringExpenses));
+    setInput('paymentPlan', JSON.stringify(paymentPlan));
+    setInput('manuallyEditedPayments', JSON.stringify(manuallyEditedPayments));
+    setInput('manuallyEditedIncomes', JSON.stringify(manuallyEditedIncomes));
+    setInput('manuallyEditedRecurringExpenses', JSON.stringify(manuallyEditedRecurringExpenses));
+
+    // Submit the form
+    updatePlanFormRef.requestSubmit();
   }
 
   function getEditedPayment(monthIndex: number, debtId: string): number | undefined {
@@ -496,61 +596,46 @@
 
   function handleSavePlan() {
     if (paymentPlan.length === 0) return;
+    savePlanError = '';
     showSavePlanModal = true;
   }
 
+  let createPlanFormRef = $state<HTMLFormElement | null>(null);
+  let updatePlanFormRef = $state<HTMLFormElement | null>(null);
+
   function confirmSavePlan() {
-    if (!savePlanName.trim() || paymentPlan.length === 0) return;
+    if (!savePlanName.trim() || paymentPlan.length === 0 || !createPlanFormRef) return;
 
-    try {
-      const savedPlan = createSavedPlan(savePlanName.trim(), {
-        debts: [...debts],
-        incomes: [...incomes],
-        recurringExpenses: [...recurringExpenses],
-        planStartDate,
-        yearsToPlan,
-        additionalSnowball: parseFloat(additionalSnowball) || 0,
-        paymentPlan: [...paymentPlan],
-        manuallyEditedPayments: { ...manuallyEditedPayments },
-        manuallyEditedIncomes: { ...manuallyEditedIncomes },
-        manuallyEditedRecurringExpenses: { ...manuallyEditedRecurringExpenses },
-      });
+    savePlanError = '';
 
-      showSavePlanModal = false;
-      savePlanName = '';
+    // Update hidden form inputs
+    const setInput = (name: string, value: string) => {
+      const input = createPlanFormRef!.querySelector(`input[name="${name}"]`) as HTMLInputElement;
+      if (input) input.value = value;
+    };
 
-      // If not viewing a saved plan, clear the generate plan view and notify parent
-      if (!isViewingSavedPlan) {
-        // Clear the plan state
-        paymentPlan = [];
-        editedPayments = {};
-        originalPayments = {};
-        manuallyEditedPayments = {};
-        editedIncomes = {};
-        originalIncomes = {};
-        manuallyEditedIncomes = {};
-        editedRecurringExpenses = {};
-        originalRecurringExpenses = {};
-        manuallyEditedRecurringExpenses = {};
-        currentSavedPlanId = null;
+    setInput('name', savePlanName.trim());
+    setInput('scenarioId', activeScenario?.uuid || '');
+    setInput('planStartDate', planStartDate.toISOString());
+    setInput('yearsToPlan', yearsToPlan.toString());
+    setInput('additionalSnowball', (parseFloat(additionalSnowball) || 0).toString());
+    setInput('paymentPlan', JSON.stringify(paymentPlan));
+    setInput('manuallyEditedPayments', JSON.stringify(manuallyEditedPayments));
+    setInput('manuallyEditedIncomes', JSON.stringify(manuallyEditedIncomes));
+    setInput('manuallyEditedRecurringExpenses', JSON.stringify(manuallyEditedRecurringExpenses));
+    setInput('debts', JSON.stringify(debts));
+    setInput('incomes', JSON.stringify(incomes));
+    setInput('recurringExpenses', JSON.stringify(recurringExpenses));
 
-        // Notify parent to switch to saved plans tab and load the new plan
-        onPlanSaved?.(savedPlan.id);
-      } else {
-        // If viewing a saved plan, just update it
-        currentSavedPlanId = savedPlan.id;
-        onSavedPlanUpdate?.(savedPlan.id);
-      }
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to save plan');
-    }
+    // Submit the form
+    createPlanFormRef.requestSubmit();
   }
 
   function loadSavedPlan(plan: SavedPlan) {
-    // Load base scenario inputs
-    debts = [...plan.debts];
-    incomes = [...plan.incomes];
-    recurringExpenses = [...plan.recurringExpenses];
+    // Load base scenario inputs into saved plan state
+    savedPlanDebts = [...plan.debts];
+    savedPlanIncomes = [...plan.incomes];
+    savedPlanExpenses = [...plan.recurringExpenses];
 
     // Load plan generation parameters
     planStartDate = new Date(plan.planStartDate);
@@ -576,11 +661,19 @@
     originalRecurringExpenses = {};
 
     currentSavedPlanId = plan.id;
+
+    // Store original state to detect unsaved changes (use structuredClone for better performance)
+    originalSavedPlanState = {
+      paymentPlan: structuredClone(plan.paymentPlan),
+      manuallyEditedPayments: structuredClone(plan.manuallyEditedPayments),
+      manuallyEditedIncomes: structuredClone(plan.manuallyEditedIncomes),
+      manuallyEditedRecurringExpenses: structuredClone(plan.manuallyEditedRecurringExpenses),
+    };
   }
 
-  function loadPlanIfNeeded() {
+  async function loadPlanIfNeeded() {
     if (savedPlanId) {
-      const plan = getAllSavedPlans().find((p) => p.id === savedPlanId);
+      const plan = await getSavedPlan(savedPlanId);
       if (plan) {
         loadSavedPlan(plan);
       }
@@ -594,6 +687,10 @@
     } else {
       // Clear saved plan state if prop is cleared
       currentSavedPlanId = null;
+      originalSavedPlanState = null;
+      savedPlanDebts = [];
+      savedPlanIncomes = [];
+      savedPlanExpenses = [];
       paymentPlan = [];
       editedPayments = {};
       originalPayments = {};
@@ -607,12 +704,8 @@
     }
   });
 
-  // Watch for scenario changes
-  $effect(() => {
-    if (selectedScenarioId && !isViewingSavedPlan) {
-      handleScenarioChange(selectedScenarioId);
-    }
-  });
+  // Don't auto-trigger scenario change on every selectedScenarioId update
+  // Only trigger when user explicitly selects via Select component
 
   onMount(() => {
     // If savedPlanId prop is provided, load that saved plan first (skip scenario loading)
@@ -621,11 +714,7 @@
       return; // Don't load scenarios when viewing saved plan
     }
 
-    // Otherwise, load scenarios normally
-    loadScenarios();
-    if (selectedScenarioId) {
-      loadDataForScenario(selectedScenarioId);
-    }
+    // Scenarios and data are loaded via reactive queries, no need to manually load
   });
 </script>
 
@@ -659,11 +748,14 @@
             })}
           </P>
         </div>
-        {#if onDeletePlan}
-          <div class="ml-auto">
+        <div class="ml-auto flex items-center gap-2">
+          {#if hasUnsavedChanges()}
+            <Button onclick={handleSaveChanges} color="green" size="sm">Save Changes</Button>
+          {/if}
+          {#if onDeletePlan}
             <DeleteIcon onclick={onDeletePlan} ariaLabel="Delete saved plan" />
-          </div>
-        {/if}
+          {/if}
+        </div>
       </div>
     </div>
   {:else}
@@ -674,8 +766,12 @@
           <div class="flex items-center gap-2">
             <P size="sm">Scenario:</P>
             <Select
-              items={scenarios.map((s) => ({ value: s.id, name: s.name }))}
+              items={scenarios.map((s) => ({ value: s.uuid, name: s.name }))}
               bind:value={selectedScenarioId}
+              onSelect={(option) => {
+                handleScenarioChange(option.value);
+              }}
+              placeholder="Select a scenario"
             />
           </div>
         {/if}
@@ -731,7 +827,7 @@
             placeholder="0.00"
           />
         </div>
-        <Button onclick={handleGeneratePlan}>Generate Plan</Button>
+        <Button onclick={handleGeneratePlan} disabled={!activeScenario}>Generate Plan</Button>
         {#if paymentPlan.length > 0}
           <Button onclick={handleSavePlan} color="green">Save Plan</Button>
         {/if}
@@ -753,27 +849,103 @@
 
   <!-- Save Plan Modal -->
   <Modal bind:open={showSavePlanModal} title="Save Plan">
-    <div class="flex flex-col gap-4">
-      <P size="sm" class="text-neutral-600 dark:text-neutral-400">
-        Save this payment plan with all its inputs and edits. You can save up to 5 plans.
-      </P>
-      <div>
-        <Label for="save-plan-name" class="mb-2 block">Plan Name</Label>
-        <Input
-          id="save-plan-name"
-          placeholder="e.g., Aggressive Paydown, Conservative Plan, etc."
-          bind:value={savePlanName}
-          onkeydown={(e) => {
-            if (e.key === 'Enter') {
-              confirmSavePlan();
-            }
-          }}
-        />
+    <form
+      bind:this={createPlanFormRef}
+      {...createPaydownSavedPlan.enhance(async ({ submit }) => {
+        try {
+          await submit();
+          // Set pending plan name - effect will watch for it in savedPlans
+          pendingPlanName = savePlanName.trim();
+          await getSavedPlans().refresh();
+          // Effect will handle finding the plan and updating state
+        } catch (error) {
+          savePlanError =
+            error instanceof Error ? error.message : 'Failed to save plan. Please try again.';
+        }
+      })}
+    >
+      <div class="flex flex-col gap-4">
+        <P size="sm" class="text-neutral-600 dark:text-neutral-400">
+          Save this payment plan with all its inputs and edits. You can save up to 5 plans.
+        </P>
+        {#if savePlanError}
+          <Alert color="red">{savePlanError}</Alert>
+        {/if}
+        <!-- Hidden form inputs -->
+        <input type="hidden" name="name" />
+        <input type="hidden" name="scenarioId" />
+        <input type="hidden" name="planStartDate" />
+        <input type="hidden" name="yearsToPlan" />
+        <input type="hidden" name="additionalSnowball" />
+        <input type="hidden" name="paymentPlan" />
+        <input type="hidden" name="manuallyEditedPayments" />
+        <input type="hidden" name="manuallyEditedIncomes" />
+        <input type="hidden" name="manuallyEditedRecurringExpenses" />
+        <input type="hidden" name="debts" />
+        <input type="hidden" name="incomes" />
+        <input type="hidden" name="recurringExpenses" />
+        <div>
+          <Label for="save-plan-name" class="mb-2 block">Plan Name</Label>
+          <Input
+            id="save-plan-name"
+            placeholder="e.g., Aggressive Paydown, Conservative Plan, etc."
+            bind:value={savePlanName}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmSavePlan();
+              }
+            }}
+          />
+        </div>
+        <div class="flex justify-end gap-2">
+          <Button
+            type="button"
+            color="gray"
+            onclick={() => {
+              showSavePlanModal = false;
+              savePlanError = '';
+            }}
+          >
+            Cancel
+          </Button>
+          <Button type="button" onclick={confirmSavePlan} disabled={!savePlanName.trim()}
+            >Save</Button
+          >
+        </div>
       </div>
-      <div class="flex justify-end gap-2">
-        <Button color="gray" onclick={() => (showSavePlanModal = false)}>Cancel</Button>
-        <Button onclick={confirmSavePlan} disabled={!savePlanName.trim()}>Save</Button>
-      </div>
-    </div>
+    </form>
   </Modal>
+
+  <!-- Hidden form for updating saved plans -->
+  <form
+    bind:this={updatePlanFormRef}
+    style="display: none;"
+    {...updatePaydownSavedPlan.enhance(async ({ submit }) => {
+      await submit();
+      // Update original state to reflect saved state (use structuredClone for better performance)
+      if (originalSavedPlanState) {
+        originalSavedPlanState = {
+          paymentPlan: structuredClone(paymentPlan),
+          manuallyEditedPayments: structuredClone(manuallyEditedPayments),
+          manuallyEditedIncomes: structuredClone(manuallyEditedIncomes),
+          manuallyEditedRecurringExpenses: structuredClone(manuallyEditedRecurringExpenses),
+        };
+      }
+      // Don't refresh queries - we already have all updated data locally
+      // Refreshing would cause unnecessary reactive updates and re-renders
+      if (currentSavedPlanId) {
+        onSavedPlanUpdate?.(currentSavedPlanId);
+      }
+    })}
+  >
+    <input type="hidden" name="planId" />
+    <input type="hidden" name="debts" />
+    <input type="hidden" name="incomes" />
+    <input type="hidden" name="recurringExpenses" />
+    <input type="hidden" name="paymentPlan" />
+    <input type="hidden" name="manuallyEditedPayments" />
+    <input type="hidden" name="manuallyEditedIncomes" />
+    <input type="hidden" name="manuallyEditedRecurringExpenses" />
+  </form>
 </div>

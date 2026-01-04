@@ -4,7 +4,7 @@
   import type { FormField } from '$lib/types/custom/forms';
 
   interface Props {
-    field: FormField;
+    field?: FormField;
     class?: string;
     size?: InputProps['size'];
     color?: InputProps['color'];
@@ -12,6 +12,8 @@
     disabled?: boolean;
     type?: string;
     initialValue?: string | number;
+    value?: string | number;
+    isDirty?: boolean;
     [key: string]: unknown;
   }
 
@@ -24,6 +26,8 @@
     disabled,
     type = 'text',
     initialValue,
+    value = $bindable<string | number | undefined>(undefined),
+    isDirty,
     ...restProps
   }: Props = $props();
 
@@ -46,12 +50,12 @@
   const cleanedAttrs = $derived(
     Object.fromEntries(
       Object.entries(fieldAttrs).filter(
-        ([key, value]) => key !== 'size' && key !== 'color' && key !== 'value' && value !== null,
+        ([key, val]) => key !== 'size' && key !== 'color' && key !== 'value' && val !== null,
       ),
     ),
   );
 
-  // NOTE: Determine the value to use - field value takes precedence, then initialValue
+  // NOTE: Determine the value to use - field value takes precedence, then bindable value, then initialValue
   // Treat empty strings as "no value" when initialValue is provided (for edit forms)
   // This allows initialValue to populate fields when the form field is empty
   const isEmptyString = $derived(
@@ -62,7 +66,13 @@
   );
 
   const resolvedValue = $derived(
-    hasFieldValue ? fieldAttrs.value : initialValue !== undefined ? initialValue : undefined,
+    hasFieldValue
+      ? fieldAttrs.value
+      : value !== undefined
+        ? value
+        : initialValue !== undefined
+          ? initialValue
+          : undefined,
   );
 
   // NOTE: Merge attributes, prioritizing explicit props over field attrs
@@ -82,6 +92,7 @@
 
   // NOTE: Safely access field issues - wrap in derived.by() to avoid blocking
   const fieldIssues = $derived.by(() => {
+    if (isDirty === false) return [];
     try {
       return field?.issues() ?? [];
     } catch (error) {
@@ -92,7 +103,11 @@
 </script>
 
 <div>
-  <Input {...inputAttrs} />
+  {#if field}
+    <Input {...inputAttrs} />
+  {:else}
+    <Input {...inputAttrs} bind:value />
+  {/if}
 
   {#each fieldIssues as issue}
     <P size="sm" class="mt-1 text-red-600 dark:text-red-400">{issue.message}</P>

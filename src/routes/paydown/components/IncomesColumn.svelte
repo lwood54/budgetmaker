@@ -1,75 +1,55 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { P } from 'flowbite-svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import AddIcon from '$lib/components/AddIcon.svelte';
-  import {
-    getAllIncomes,
-    getAllDebts,
-    getAllRecurringExpenses,
-    deleteIncome,
-    getActiveScenarioId,
-    type MonthlyIncome,
-  } from '../helpers';
+  import { getIncomes, getDebts, getRecurringExpenses } from '$lib/api/paydown.remote';
+  import DeleteIncomeModal from './DeleteIncomeModal.svelte';
 
-  let { onAddClick = () => {}, onDelete = () => {}, onEdit = () => {} } = $props();
+  let {
+    activeScenarioId = $bindable<string | null>(null),
+    onAddClick = () => {},
+    onDelete = () => {},
+    onEdit = () => {},
+  } = $props();
 
-  let incomes = $state<MonthlyIncome[]>([]);
-  let previousScenarioId = $state<string | null>(null);
+  // NOTE: this is the suggested pattern to prevent waterfall effects,
+  // however, I'm still seeing the warning.
+  // https://svelte.dev/docs/svelte/runtime-warnings#Client-warnings-await_waterfall
+  const incomesPromise = $derived(getIncomes(activeScenarioId));
+  const debtsPromise = $derived(getDebts(activeScenarioId));
+  const expensesPromise = $derived(getRecurringExpenses(activeScenarioId));
 
-  function loadData() {
-    incomes = getAllIncomes();
-    previousScenarioId = getActiveScenarioId();
-  }
+  const incomes = $derived(await incomesPromise);
+  const debts = $derived(await debtsPromise);
+  const expenses = $derived(await expensesPromise);
 
-  // Calculate totals
   const totalIncome = $derived(incomes.reduce((sum, income) => sum + income.amount, 0));
-
-  // Calculate remaining (need debts and expenses for this)
-  let debts = $state<ReturnType<typeof getAllDebts>>([]);
-  let expenses = $state<ReturnType<typeof getAllRecurringExpenses>>([]);
   const totalMonthlyPayments = $derived(debts.reduce((sum, debt) => sum + debt.monthlyPayment, 0));
   const totalExpenses = $derived(expenses.reduce((sum, expense) => sum + expense.amount, 0));
   const remaining = $derived(totalIncome - totalMonthlyPayments - totalExpenses);
 
-  function loadDebtsAndExpenses() {
-    debts = getAllDebts();
-    expenses = getAllRecurringExpenses();
+  // Delete modal state
+  let deleteModalOpen = $state(false);
+  let incomeToDelete = $state<{ id: string; title: string } | null>(null);
+
+  function handleDelete(income: { id: string; title: string }) {
+    incomeToDelete = income;
+    deleteModalOpen = true;
   }
 
-  // Watch for scenario changes
-  $effect(() => {
-    const currentScenarioId = getActiveScenarioId();
-    if (currentScenarioId !== previousScenarioId) {
-      loadData();
-      loadDebtsAndExpenses();
+  function handleDeleteSuccess() {
+    deleteModalOpen = false;
+    if (incomeToDelete) {
+      onDelete(incomeToDelete.id);
+      incomeToDelete = null;
     }
-  });
-
-  function handleDelete(id: string) {
-    deleteIncome(id);
-    loadData();
-    onDelete(id);
   }
 
-  onMount(() => {
-    loadData();
-    loadDebtsAndExpenses();
-
-    // Listen for data changes from drawers
-    function handleDataChange() {
-      loadData();
-      loadDebtsAndExpenses();
-    }
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('paydown-data-changed', handleDataChange);
-      return () => {
-        window.removeEventListener('paydown-data-changed', handleDataChange);
-      };
-    }
-  });
+  function handleDeleteCancel() {
+    deleteModalOpen = false;
+    incomeToDelete = null;
+  }
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
@@ -107,7 +87,7 @@
           </div>
           <div class="flex items-center gap-2">
             <EditIcon onclick={() => onEdit(income)} ariaLabel="Edit income" />
-            <DeleteIcon onclick={() => handleDelete(income.id)} ariaLabel="Delete income" />
+            <DeleteIcon onclick={() => handleDelete(income)} ariaLabel="Delete income" />
           </div>
         </div>
       {/each}
@@ -118,5 +98,15 @@
     >
       <P size="base" class="text-neutral-600 dark:text-neutral-400">No incomes yet.</P>
     </div>
+  {/if}
+
+  {#if incomeToDelete}
+    <DeleteIncomeModal
+      bind:open={deleteModalOpen}
+      incomeId={incomeToDelete.id}
+      incomeTitle={incomeToDelete.title}
+      onSuccess={handleDeleteSuccess}
+      onCancel={handleDeleteCancel}
+    />
   {/if}
 </div>

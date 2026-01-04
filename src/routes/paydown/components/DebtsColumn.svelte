@@ -1,59 +1,45 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { P } from 'flowbite-svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import AddIcon from '$lib/components/AddIcon.svelte';
-  import {
-    getAllDebts,
-    deleteDebt,
-    getActiveScenarioId,
-    sortDebtsByPriority,
-    type PaydownDebt,
-  } from '../helpers';
+  import { getDebts } from '$lib/api/paydown.remote';
+  import { sortDebtsByPriority } from '../helpers';
+  import DeleteDebtModal from './DeleteDebtModal.svelte';
 
-  let { onAddClick = () => {}, onDelete = () => {}, onEdit = () => {} } = $props();
+  let {
+    activeScenarioId = $bindable<string | null>(null),
+    onAddClick = () => {},
+    onDelete = () => {},
+    onEdit = () => {},
+  } = $props();
 
-  let debts = $state<PaydownDebt[]>([]);
-  let previousScenarioId = $state<string | null>(null);
-
-  function loadData() {
-    debts = getAllDebts();
-    previousScenarioId = getActiveScenarioId();
-  }
+  const debts = $derived(activeScenarioId ? await getDebts(activeScenarioId) : []);
 
   // Calculate totals
   const totalDebt = $derived(debts.reduce((sum, debt) => sum + debt.amount, 0));
 
-  // Watch for scenario changes
-  $effect(() => {
-    const currentScenarioId = getActiveScenarioId();
-    if (currentScenarioId !== previousScenarioId) {
-      loadData();
-    }
-  });
+  // Delete modal state
+  let deleteModalOpen = $state(false);
+  let debtToDelete = $state<{ id: string; name: string } | null>(null);
 
-  function handleDelete(id: string) {
-    deleteDebt(id);
-    loadData();
-    onDelete(id);
+  function handleDelete(debt: { id: string; name: string }) {
+    debtToDelete = debt;
+    deleteModalOpen = true;
   }
 
-  onMount(() => {
-    loadData();
-
-    // Listen for data changes from drawers
-    function handleDataChange() {
-      loadData();
+  function handleDeleteSuccess() {
+    deleteModalOpen = false;
+    if (debtToDelete) {
+      onDelete(debtToDelete.id);
+      debtToDelete = null;
     }
+  }
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('paydown-data-changed', handleDataChange);
-      return () => {
-        window.removeEventListener('paydown-data-changed', handleDataChange);
-      };
-    }
-  });
+  function handleDeleteCancel() {
+    deleteModalOpen = false;
+    debtToDelete = null;
+  }
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
@@ -82,7 +68,7 @@
           </div>
           <div class="flex items-center gap-2">
             <EditIcon onclick={() => onEdit(debt)} ariaLabel="Edit debt" />
-            <DeleteIcon onclick={() => handleDelete(debt.id)} ariaLabel="Delete debt" />
+            <DeleteIcon onclick={() => handleDelete(debt)} ariaLabel="Delete debt" />
           </div>
         </div>
       {/each}
@@ -93,5 +79,15 @@
     >
       <P size="base" class="text-neutral-600 dark:text-neutral-400">No debts yet.</P>
     </div>
+  {/if}
+
+  {#if debtToDelete}
+    <DeleteDebtModal
+      bind:open={deleteModalOpen}
+      debtId={debtToDelete.id}
+      debtName={debtToDelete.name}
+      onSuccess={handleDeleteSuccess}
+      onCancel={handleDeleteCancel}
+    />
   {/if}
 </div>

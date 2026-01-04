@@ -1,162 +1,76 @@
 <script lang="ts">
-  import { Button, P, Drawer } from 'flowbite-svelte';
-  import { addDebt, updateDebt, type DebtType, type PaydownDebt } from '../helpers';
+  import { P, Drawer, Button, Label } from 'flowbite-svelte';
+  import { createPaydownDebt, updatePaydownDebt, getDebts } from '$lib/api/paydown.remote';
+  import Input from '$lib/components/Input.svelte';
+  import type { PaydownDebt } from '../helpers';
+
+  type Props = {
+    open?: boolean;
+    onSuccess?: () => void;
+    editingDebt?: PaydownDebt | null;
+    activeScenarioId?: string | null;
+  };
 
   let {
     open = $bindable(false),
     onSuccess = () => {},
     editingDebt = $bindable<PaydownDebt | null>(null),
-  } = $props();
+    activeScenarioId = null,
+  }: Props = $props();
 
-  // Debt form fields
-  let name = $state('');
-  let amount = $state('');
-  let interestRate = $state('');
-  let monthlyPayment = $state('');
-  let debtType = $state<DebtType>('credit-card');
-  let priority = $state('1');
-
-  // Validation state
-  let nameError = $state('');
-  let amountError = $state('');
-  let interestRateError = $state('');
-  let monthlyPaymentError = $state('');
-  let priorityError = $state('');
-
-  // Check if we're in edit mode
   const isEditMode = $derived(editingDebt !== null);
+  const initialName = $derived(editingDebt?.name ?? '');
+  const initialType = $derived(editingDebt?.type ?? 'credit-card');
+  const initialAmount = $derived(editingDebt?.amount.toString() ?? '');
+  const initialInterestRate = $derived(editingDebt?.interestRate.toString() ?? '');
+  const initialMonthlyPayment = $derived(editingDebt?.monthlyPayment.toString() ?? '');
+  const initialPriority = $derived(editingDebt?.priority?.toString() ?? '1');
 
-  // Load data when editing
+  // For select element, we need a reactive value
+  let debtType = $state('credit-card');
+
+  // Update debtType when drawer opens or editingDebt changes
   $effect(() => {
-    if (open && editingDebt) {
-      name = editingDebt.name;
-      amount = editingDebt.amount.toString();
-      interestRate = editingDebt.interestRate.toString();
-      monthlyPayment = editingDebt.monthlyPayment.toString();
-      debtType = editingDebt.type;
-      priority = editingDebt.priority.toString();
-      nameError = '';
-      amountError = '';
-      interestRateError = '';
-      monthlyPaymentError = '';
-      priorityError = '';
-    } else if (open && !editingDebt) {
-      // Reset form for add mode
-      clearForm();
+    if (open) {
+      debtType = initialType;
+    }
+  });
+  let isSubmitting = $state(false);
+  let formRef = $state<HTMLFormElement | null>(null);
+  let dirtyFields = $state({
+    name: false,
+    type: false,
+    amount: false,
+    interestRate: false,
+    monthlyPayment: false,
+    priority: false,
+  });
+
+  const remoteForm = $derived(isEditMode ? updatePaydownDebt : createPaydownDebt);
+
+  $effect(() => {
+    if (!open) {
+      formRef?.reset();
+      debtType = initialType;
+      dirtyFields = {
+        name: false,
+        type: false,
+        amount: false,
+        interestRate: false,
+        monthlyPayment: false,
+        priority: false,
+      };
     }
   });
 
-  function clearForm() {
-    name = '';
-    amount = '';
-    interestRate = '';
-    monthlyPayment = '';
-    debtType = 'credit-card';
-    priority = '1';
-    nameError = '';
-    amountError = '';
-    interestRateError = '';
-    monthlyPaymentError = '';
-    priorityError = '';
-  }
-
-  function validateForm(): boolean {
-    nameError = '';
-    amountError = '';
-    interestRateError = '';
-    monthlyPaymentError = '';
-    priorityError = '';
-
-    if (!name.trim()) {
-      nameError = 'Debt name is required';
-      return false;
-    }
-
-    const amountVal = parseFloat(amount);
-    if (isNaN(amountVal) || amountVal < 0) {
-      amountError = 'Amount must be a valid number greater than or equal to 0';
-      return false;
-    }
-
-    const interestRateVal = parseFloat(interestRate);
-    if (isNaN(interestRateVal) || interestRateVal < 0) {
-      interestRateError = 'Interest rate must be a valid number greater than or equal to 0';
-      return false;
-    }
-
-    const monthlyPaymentVal = parseFloat(monthlyPayment);
-    if (isNaN(monthlyPaymentVal) || monthlyPaymentVal < 0) {
-      monthlyPaymentError = 'Monthly payment must be a valid number greater than or equal to 0';
-      return false;
-    }
-
-    const priorityVal = parseInt(priority);
-    if (isNaN(priorityVal) || priorityVal < 0) {
-      priorityError = 'Priority must be a valid number greater than or equal to 0';
-      return false;
-    }
-
-    return true;
-  }
-
-  function saveDebt(): boolean {
-    if (!validateForm()) return false;
-
-    const debtData = {
-      name: name.trim(),
-      type: debtType,
-      amount: parseFloat(amount) || 0,
-      interestRate: parseFloat(interestRate) || 0,
-      monthlyPayment: parseFloat(monthlyPayment) || 0,
-      priority: parseInt(priority) || 0,
-    };
-
-    if (isEditMode && editingDebt) {
-      // Update existing debt
-      updateDebt(editingDebt.id, debtData);
-    } else {
-      // Add new debt
-      addDebt(debtData);
-    }
-
-    // Notify parent to reload
-    onSuccess();
-    return true;
-  }
-
   function handleCancel() {
-    clearForm();
-    editingDebt = null;
     open = false;
-  }
-
-  function handleUpdate() {
-    const success = saveDebt();
-    if (success) {
-      // Always close drawer after successful update in edit mode
-      clearForm();
-      editingDebt = null;
-      open = false;
-    }
-  }
-
-  function handleDone() {
-    saveDebt();
-    clearForm();
     editingDebt = null;
-    open = false;
-  }
-
-  function handleAddAnother() {
-    saveDebt();
-    clearForm();
-    // Keep drawer open
   }
 </script>
 
 <Drawer bind:open placement="right" class="z-50">
   <div class="flex max-h-[100vh] w-full max-w-md flex-col bg-white dark:bg-neutral-800">
-    <!-- Header -->
     <div
       class="flex items-center justify-between border-b border-neutral-200 px-4 py-4 dark:border-neutral-700"
     >
@@ -165,38 +79,74 @@
       </P>
     </div>
 
-    <!-- Form Content -->
     <div class="flex-1 overflow-y-auto px-4 py-4">
       <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          if (isEditMode) {
-            handleUpdate();
-          } else {
-            handleAddAnother();
+        bind:this={formRef}
+        {...remoteForm.enhance(async ({ form: formElement, submit }) => {
+          isSubmitting = true;
+          try {
+            await submit();
+
+            if (remoteForm.result?.success === true) {
+              formElement.reset();
+              if (activeScenarioId) {
+                await getDebts(activeScenarioId).refresh();
+              }
+              open = false;
+              editingDebt = null;
+              dirtyFields = {
+                name: false,
+                type: false,
+                amount: false,
+                interestRate: false,
+                monthlyPayment: false,
+                priority: false,
+              };
+              onSuccess();
+            }
+          } catch (error) {
+            console.error('Error submitting form:', error);
+            formElement.reset();
+          } finally {
+            isSubmitting = false;
           }
-        }}
+        })}
         class="flex flex-col gap-4"
       >
+        {#if isEditMode}
+          <input type="hidden" name="debtId" value={editingDebt?.id} />
+        {:else}
+          <input type="hidden" name="scenarioId" value={activeScenarioId ?? ''} />
+        {/if}
         <div>
-          <P size="sm" class="mb-2">Debt Name</P>
-          <input
-            type="text"
-            bind:value={name}
-            class="w-full rounded border px-3 py-2 text-neutral-900 {nameError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+          <Label for="debt-name" class="mb-2 block">Debt Name</Label>
+          <Input
+            field={remoteForm.fields.name}
+            isDirty={dirtyFields.name}
+            id="debt-name"
+            name="name"
+            initialValue={initialName}
+            placeholder="Enter debt name"
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.name = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if nameError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{nameError}</P>
-          {/if}
         </div>
         <div>
-          <P size="sm" class="mb-2">Debt Type</P>
+          <Label for="debt-type" class="mb-2 block">Debt Type</Label>
           <select
+            id="debt-type"
+            name="type"
             bind:value={debtType}
+            disabled={isSubmitting}
             class="w-full rounded border border-neutral-300 px-3 py-2 text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+            onchange={() => {
+              dirtyFields.type = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           >
             <option value="credit-card">Credit Card</option>
             <option value="car">Car Loan</option>
@@ -207,80 +157,116 @@
           </select>
         </div>
         <div>
-          <P size="sm" class="mb-2">Debt Amount</P>
-          <input
+          <Label for="debt-amount" class="mb-2 block">Debt Amount</Label>
+          <Input
+            field={remoteForm.fields.amount}
+            isDirty={dirtyFields.amount}
+            id="debt-amount"
+            name="amount"
             type="number"
-            bind:value={amount}
             step="0.01"
             min="0"
-            class="w-full rounded border px-3 py-2 text-neutral-900 {amountError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+            initialValue={initialAmount}
+            placeholder="Enter debt amount"
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.amount = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if amountError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{amountError}</P>
-          {/if}
         </div>
         <div>
-          <P size="sm" class="mb-2">Interest Rate (%)</P>
-          <input
+          <Label for="debt-interest-rate" class="mb-2 block">Interest Rate (%)</Label>
+          <Input
+            field={remoteForm.fields.interestRate}
+            isDirty={dirtyFields.interestRate}
+            id="debt-interest-rate"
+            name="interestRate"
             type="number"
-            bind:value={interestRate}
             step="0.01"
             min="0"
-            class="w-full rounded border px-3 py-2 text-neutral-900 {interestRateError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+            max="100"
+            initialValue={initialInterestRate}
+            placeholder="Enter interest rate"
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.interestRate = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if interestRateError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{interestRateError}</P>
-          {/if}
         </div>
         <div>
-          <P size="sm" class="mb-2">Monthly Payment</P>
-          <input
+          <Label for="debt-monthly-payment" class="mb-2 block">Monthly Payment</Label>
+          <Input
+            field={remoteForm.fields.monthlyPayment}
+            isDirty={dirtyFields.monthlyPayment}
+            id="debt-monthly-payment"
+            name="monthlyPayment"
             type="number"
-            bind:value={monthlyPayment}
             step="0.01"
             min="0"
-            class="w-full rounded border px-3 py-2 text-neutral-900 {monthlyPaymentError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+            initialValue={initialMonthlyPayment}
+            placeholder="Enter monthly payment"
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.monthlyPayment = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if monthlyPaymentError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{monthlyPaymentError}</P>
-          {/if}
         </div>
         <div>
-          <P size="sm" class="mb-2">Priority (1 = highest, 0 = skip snowball)</P>
-          <input
+          <Label for="debt-priority" class="mb-2 block"
+            >Priority (1 = highest, 0 = skip snowball)</Label
+          >
+          <Input
+            field={remoteForm.fields.priority}
+            isDirty={dirtyFields.priority}
+            id="debt-priority"
+            name="priority"
             type="number"
-            bind:value={priority}
-            min="0"
             step="1"
+            min="0"
+            initialValue={initialPriority}
             placeholder="1"
-            class="w-full rounded border px-3 py-2 text-neutral-900 {priorityError
-              ? 'border-red-500 dark:border-red-500'
-              : 'border-neutral-300 dark:border-neutral-600'} dark:bg-neutral-800 dark:text-neutral-100"
-            required
+            disabled={isSubmitting}
+            class="w-full"
+            oninput={() => {
+              dirtyFields.priority = true;
+              remoteForm.validate({ includeUntouched: false });
+            }}
           />
-          {#if priorityError}
-            <P size="xs" class="mt-1 text-red-600 dark:text-red-400">{priorityError}</P>
-          {/if}
         </div>
-        <div class="flex flex-col gap-4 pt-4">
-          <Button type="button" color="alternative" class="w-full" onclick={handleCancel}>
+        <div class="flex gap-3 pt-4">
+          <Button
+            type="button"
+            color="alternative"
+            onclick={handleCancel}
+            disabled={isSubmitting}
+            class="flex-1"
+          >
             Cancel
           </Button>
-          {#if isEditMode}
-            <Button type="button" class="w-full" onclick={handleUpdate}>Update</Button>
-          {:else}
-            <Button type="submit" class="w-full">Add Another</Button>
-            <Button type="button" class="w-full" onclick={handleDone}>Done</Button>
-          {/if}
+          <Button
+            type="submit"
+            onclick={() => {
+              dirtyFields = {
+                name: true,
+                type: true,
+                amount: true,
+                interestRate: true,
+                monthlyPayment: true,
+                priority: true,
+              };
+            }}
+            color="primary"
+            disabled={isSubmitting}
+            class="flex-1"
+          >
+            {isSubmitting ? 'Saving...' : isEditMode ? 'Save' : 'Add Debt'}
+          </Button>
         </div>
       </form>
     </div>

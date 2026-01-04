@@ -22,6 +22,7 @@
     id?: string;
     name?: string;
     size?: 'sm' | 'md' | 'lg';
+    onSelect?: (option: Option) => void;
   }
 
   let {
@@ -36,6 +37,7 @@
     id,
     name,
     size = 'md',
+    onSelect,
   }: Props = $props();
 
   let isOpen = $state(false);
@@ -79,6 +81,14 @@
   function selectItem(itemValue: string) {
     value = itemValue;
     isOpen = false;
+
+    // Call onSelect callback with the selected option object
+    if (onSelect) {
+      const selectedOption = items.find((item) => item.value === itemValue);
+      if (selectedOption) {
+        onSelect(selectedOption);
+      }
+    }
   }
 
   // Sync value with field if provided

@@ -1,21 +1,18 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { Button, P, Modal } from 'flowbite-svelte';
   import Select from '$lib/components/Select.svelte';
   import GeneratePlan from '../components/GeneratePlan.svelte';
-  import { getAllSavedPlans, deleteSavedPlan, type SavedPlan } from '../helpers';
+  import { getSavedPlans, deletePaydownSavedPlan } from '$lib/api/paydown.remote';
+  import { type SavedPlan } from '../helpers';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
 
-  // Saved Plans state
-  let savedPlans = $state<SavedPlan[]>([]);
+  // Saved Plans state with remote query
+  const savedPlans = $derived((await getSavedPlans()) ?? []);
+
   let selectedSavedPlanId = $state<string | null>(null);
   let showDeleteModal = $state(false);
   let planToDelete = $state<SavedPlan | null>(null);
-
-  function loadSavedPlans() {
-    savedPlans = getAllSavedPlans();
-  }
 
   function handleSavedPlanChange(planId: string | null) {
     // Update URL without navigation
@@ -34,7 +31,8 @@
   });
 
   function handleSavedPlanUpdate(planId: string) {
-    loadSavedPlans();
+    // Don't refresh - we already have updated data locally
+    // Refreshing causes cascading reactive updates and performance issues
     // Keep the same plan selected
     selectedSavedPlanId = planId;
   }
@@ -44,47 +42,12 @@
     showDeleteModal = true;
   }
 
-  function handleDeleteConfirm() {
-    if (!planToDelete) return;
-
-    deleteSavedPlan(planToDelete.id);
-    loadSavedPlans();
-
-    // Clear selection if we deleted the selected plan
-    if (selectedSavedPlanId === planToDelete.id) {
-      selectedSavedPlanId = null;
-    }
-
-    // Close modal and switch to generate plan tab
-    showDeleteModal = false;
-    planToDelete = null;
-    goto('/paydown/generate');
-  }
-
   function handleDeleteCancel() {
     showDeleteModal = false;
     planToDelete = null;
   }
 
-  onMount(() => {
-    loadSavedPlans();
-    // Check if there's a plan ID in the URL query params
-    const planId = page.url.searchParams.get('plan');
-    if (planId) {
-      const plan = savedPlans.find((p) => p.id === planId);
-      if (plan) {
-        selectedSavedPlanId = planId;
-      } else if (savedPlans.length > 0) {
-        // If URL plan doesn't exist, default to first plan
-        selectedSavedPlanId = savedPlans[0].id;
-      }
-    } else if (savedPlans.length > 0) {
-      // No plan in URL, default to first plan
-      selectedSavedPlanId = savedPlans[0].id;
-    }
-  });
-
-  // Watch for URL changes (e.g., when navigating from generate page after saving)
+  // Initialize selected plan from URL
   $effect(() => {
     const planId = page.url.searchParams.get('plan');
     if (planId && savedPlans.length > 0) {
@@ -92,11 +55,9 @@
       if (plan && selectedSavedPlanId !== planId) {
         selectedSavedPlanId = planId;
       } else if (!plan && savedPlans.length > 0 && !selectedSavedPlanId) {
-        // If URL plan doesn't exist and nothing is selected, default to first plan
         selectedSavedPlanId = savedPlans[0].id;
       }
     } else if (!planId && savedPlans.length > 0 && !selectedSavedPlanId) {
-      // No plan in URL and nothing selected, default to first plan
       selectedSavedPlanId = savedPlans[0].id;
     }
   });
@@ -137,18 +98,33 @@
 
 <!-- Delete Plan Confirmation Modal -->
 <Modal bind:open={showDeleteModal} title="Delete Saved Plan">
-  <div class="flex flex-col gap-4">
-    <P size="base">
-      Are you sure you want to delete this saved plan? This action cannot be undone.
-    </P>
-    {#if planToDelete}
+  {#if planToDelete}
+    {@const planIdToDelete = planToDelete.id}
+    <form
+      {...deletePaydownSavedPlan.enhance(async ({ submit }) => {
+        await submit();
+        getSavedPlans().refresh();
+        // Clear selection if we deleted the selected plan
+        if (selectedSavedPlanId === planIdToDelete) {
+          selectedSavedPlanId = null;
+        }
+        showDeleteModal = false;
+        planToDelete = null;
+        goto('/paydown/generate');
+      })}
+      class="flex flex-col gap-4"
+    >
+      <input type="hidden" name="planId" value={planIdToDelete} />
+      <P size="base">
+        Are you sure you want to delete this saved plan? This action cannot be undone.
+      </P>
       <P size="lg" class="font-semibold text-neutral-900 dark:text-neutral-100">
         {planToDelete.name}
       </P>
-    {/if}
-    <div class="flex justify-end gap-2">
-      <Button color="gray" onclick={handleDeleteCancel}>Cancel</Button>
-      <Button color="red" onclick={handleDeleteConfirm}>Delete</Button>
-    </div>
-  </div>
+      <div class="flex justify-end gap-2">
+        <Button type="button" color="gray" onclick={handleDeleteCancel}>Cancel</Button>
+        <Button type="submit" color="red">Delete</Button>
+      </div>
+    </form>
+  {/if}
 </Modal>

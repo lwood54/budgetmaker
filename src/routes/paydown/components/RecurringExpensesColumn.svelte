@@ -1,60 +1,48 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { P } from 'flowbite-svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import AddIcon from '$lib/components/AddIcon.svelte';
-  import {
-    getAllRecurringExpenses,
-    deleteRecurringExpense,
-    getActiveScenarioId,
-    type RecurringExpense,
-  } from '../helpers';
+  import { getRecurringExpenses } from '$lib/api/paydown.remote';
+  import DeleteRecurringExpenseModal from './DeleteRecurringExpenseModal.svelte';
 
-  let { onAddClick = () => {}, onDelete = () => {}, onEdit = () => {} } = $props();
+  let {
+    activeScenarioId = $bindable<string | null>(null),
+    onAddClick = () => {},
+    onDelete = () => {},
+    onEdit = () => {},
+  } = $props();
 
-  let recurringExpenses = $state<RecurringExpense[]>([]);
-  let previousScenarioId = $state<string | null>(null);
-
-  function loadData() {
-    recurringExpenses = getAllRecurringExpenses();
-    previousScenarioId = getActiveScenarioId();
-  }
+  const recurringExpenses = $derived(
+    activeScenarioId ? await getRecurringExpenses(activeScenarioId) : [],
+  );
 
   // Calculate totals
   const totalExpenses = $derived(
     recurringExpenses.reduce((sum, expense) => sum + expense.amount, 0),
   );
 
-  // Watch for scenario changes
-  $effect(() => {
-    const currentScenarioId = getActiveScenarioId();
-    if (currentScenarioId !== previousScenarioId) {
-      loadData();
-    }
-  });
+  // Delete modal state
+  let deleteModalOpen = $state(false);
+  let expenseToDelete = $state<{ id: string; title: string } | null>(null);
 
-  function handleDelete(id: string) {
-    deleteRecurringExpense(id);
-    loadData();
-    onDelete(id);
+  function handleDelete(expense: { id: string; title: string }) {
+    expenseToDelete = expense;
+    deleteModalOpen = true;
   }
 
-  onMount(() => {
-    loadData();
-
-    // Listen for data changes from drawers
-    function handleDataChange() {
-      loadData();
+  function handleDeleteSuccess() {
+    deleteModalOpen = false;
+    if (expenseToDelete) {
+      onDelete(expenseToDelete.id);
+      expenseToDelete = null;
     }
+  }
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('paydown-data-changed', handleDataChange);
-      return () => {
-        window.removeEventListener('paydown-data-changed', handleDataChange);
-      };
-    }
-  });
+  function handleDeleteCancel() {
+    deleteModalOpen = false;
+    expenseToDelete = null;
+  }
 </script>
 
 <div class="flex flex-1 flex-col gap-4">
@@ -83,7 +71,7 @@
           <div class="flex items-center gap-2">
             <EditIcon onclick={() => onEdit(expense)} ariaLabel="Edit recurring expense" />
             <DeleteIcon
-              onclick={() => handleDelete(expense.id)}
+              onclick={() => handleDelete(expense)}
               ariaLabel="Delete recurring expense"
             />
           </div>
@@ -96,5 +84,15 @@
     >
       <P size="base" class="text-neutral-600 dark:text-neutral-400">No recurring expenses yet.</P>
     </div>
+  {/if}
+
+  {#if expenseToDelete}
+    <DeleteRecurringExpenseModal
+      bind:open={deleteModalOpen}
+      expenseId={expenseToDelete.id}
+      expenseTitle={expenseToDelete.title}
+      onSuccess={handleDeleteSuccess}
+      onCancel={handleDeleteCancel}
+    />
   {/if}
 </div>
