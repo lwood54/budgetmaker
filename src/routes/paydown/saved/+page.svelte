@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button, P, Modal } from 'flowbite-svelte';
   import Select from '$lib/components/Select.svelte';
-  import GeneratePlan from '../components/GeneratePlan.svelte';
+  import SavedPlanView from '../components/SavedPlanView.svelte';
   import { getSavedPlans, deletePaydownSavedPlan } from '$lib/api/paydown.remote';
   import { type SavedPlan } from '../helpers';
   import { page } from '$app/state';
@@ -23,20 +23,6 @@
     }
   }
 
-  // Watch for value changes
-  $effect(() => {
-    if (selectedSavedPlanId !== null) {
-      handleSavedPlanChange(selectedSavedPlanId);
-    }
-  });
-
-  function handleSavedPlanUpdate(planId: string) {
-    // Don't refresh - we already have updated data locally
-    // Refreshing causes cascading reactive updates and performance issues
-    // Keep the same plan selected
-    selectedSavedPlanId = planId;
-  }
-
   function handleDeleteClick(plan: SavedPlan) {
     planToDelete = plan;
     showDeleteModal = true;
@@ -47,19 +33,26 @@
     planToDelete = null;
   }
 
-  // Initialize selected plan from URL
+  // Initialize selected plan from URL (only when plans first load)
+  let hasInitialized = $state(false);
   $effect(() => {
+    // Only initialize once when plans are first loaded
+    if (hasInitialized || savedPlans.length === 0) return;
+
     const planId = page.url.searchParams.get('plan');
-    if (planId && savedPlans.length > 0) {
+    if (planId) {
       const plan = savedPlans.find((p) => p.id === planId);
-      if (plan && selectedSavedPlanId !== planId) {
+      if (plan) {
         selectedSavedPlanId = planId;
-      } else if (!plan && savedPlans.length > 0 && !selectedSavedPlanId) {
-        selectedSavedPlanId = savedPlans[0].id;
+        hasInitialized = true;
+        return;
       }
-    } else if (!planId && savedPlans.length > 0 && !selectedSavedPlanId) {
-      selectedSavedPlanId = savedPlans[0].id;
     }
+
+    // Default to first plan if no URL param
+    selectedSavedPlanId = savedPlans[0].id;
+    handleSavedPlanChange(savedPlans[0].id);
+    hasInitialized = true;
   });
 </script>
 
@@ -69,6 +62,9 @@
       <Select
         items={savedPlans.map((p) => ({ value: p.id, name: p.name }))}
         bind:value={selectedSavedPlanId}
+        onSelect={(option) => {
+          handleSavedPlanChange(option.value);
+        }}
         class="w-72"
         placeholder="Select Plan"
       />
@@ -77,9 +73,8 @@
       {@const selectedPlan = savedPlans.find((p) => p.id === selectedSavedPlanId)}
       {#if selectedPlan}
         {#key selectedSavedPlanId}
-          <GeneratePlan
-            savedPlanId={selectedSavedPlanId}
-            onSavedPlanUpdate={handleSavedPlanUpdate}
+          <SavedPlanView
+            planId={selectedSavedPlanId}
             onDeletePlan={() => handleDeleteClick(selectedPlan)}
           />
         {/key}

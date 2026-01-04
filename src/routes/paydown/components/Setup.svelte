@@ -36,6 +36,16 @@
   function handleDeleteScenarioClick() {
     showDeleteScenarioModal = true;
   }
+
+  // Sync activeScenario with selectedScenarioId
+  $effect(() => {
+    if (selectedScenarioId) {
+      const matchingScenario = scenarios.find((s) => s.uuid === selectedScenarioId);
+      activeScenario = matchingScenario ?? null;
+    } else {
+      activeScenario = null;
+    }
+  });
 </script>
 
 <div class="mb-6 flex items-center gap-3">
@@ -43,10 +53,6 @@
     bind:value={selectedScenarioId}
     class="w-80"
     items={scenarios.map((s) => ({ value: s.uuid, name: s.name }))}
-    onSelect={(option) => {
-      const matchingScenario = scenarios.find((s) => s.uuid === option.value);
-      activeScenario = matchingScenario ?? null;
-    }}
     placeholder="Select a scenario"
   />
   <Button
@@ -153,9 +159,11 @@
       {...deletePaydownScenario.enhance(async ({ submit }) => {
         await submit();
         showDeleteScenarioModal = false;
+        // Clear selection - the effect will sync activeScenario
         selectedScenarioId = '';
-        activeScenario = null;
-        getScenarios().refresh();
+        await getScenarios().refresh();
+        // Ensure selection stays cleared after scenarios update
+        selectedScenarioId = '';
       })}
       class="flex flex-col gap-4"
     >
