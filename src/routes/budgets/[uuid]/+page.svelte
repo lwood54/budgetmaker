@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, P, Progressbar, Search, Modal } from 'flowbite-svelte';
+  import { Button, P, Progressbar, Search, Modal, Tabs, TabItem } from 'flowbite-svelte';
   import { ArrowLeftOutline, AdjustmentsHorizontalOutline } from 'flowbite-svelte-icons';
   import { getBudget, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
@@ -25,8 +25,6 @@
   let searchQuery = $state('');
   let categorySearchQuery = $state('');
   let selectedCategoryFilters = $state<string[]>([]);
-  let showFilters = $state(false);
-  let showCategoryFilters = $state(false);
 
   // Delete state for purchases
   let deleteModalOpen = $state(false);
@@ -40,6 +38,9 @@
   let deleteCategoryModalOpen = $state(false);
   let categoryToDelete = $state<CategoryWithStatus | null>(null);
   let isDeletingCategory = $state(false);
+
+  // Tab state - default to purchases
+  let selectedTab = $state<'purchases' | 'categories'>('purchases');
 
   function handleAddCategory() {
     goto(Route.category_new(params.uuid));
@@ -376,348 +377,298 @@
           </div>
         </div>
       </div>
-      <div class="mb-6">
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">Categories</P>
-          <div class="flex items-center gap-2">
-            <Button
-              color="primary"
-              size="sm"
-              pill
-              class="h-8 w-8 p-0"
-              onclick={handleAddCategory}
-              aria-label="Add category"
-            >
-              <PlusOutline class="h-4 w-4" />
-            </Button>
+      <Tabs bind:selected={selectedTab} tabStyle="underline" class="mb-6">
+        <TabItem key="purchases" title="Purchases">
+          <div class="pt-4">
             {#if budget.categories.length > 0}
-              <Button
-                color="alternative"
-                size="sm"
-                outline
-                class="border-none p-2"
-                onclick={() => (showCategoryFilters = !showCategoryFilters)}
-                aria-label="Toggle category filters"
-              >
-                <AdjustmentsHorizontalOutline
-                  class="text-primary-900 dark:text-primary-200 h-4 w-4"
-                />
-              </Button>
-            {/if}
-          </div>
-        </div>
-
-        {#if budget.categories.length > 0}
-          {#if showCategoryFilters}
-            <div
-              class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
-            >
-              <Search
-                clearable
-                placeholder="Search categories..."
-                bind:value={categorySearchQuery}
-                class="w-full"
-              />
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Select
-                  size="sm"
-                  items={[
-                    { value: 'title-a-z', name: 'Title A-Z' },
-                    { value: 'title-z-a', name: 'Title Z-A' },
-                    { value: 'recently-used', name: 'Recently Used' },
-                    { value: 'amount-low-high', name: 'Amount Low-High' },
-                    { value: 'amount-high-low', name: 'Amount High-Low' },
-                  ]}
-                  bind:value={categorySortBy}
-                  class="w-full"
-                />
-                <Select
-                  size="sm"
-                  items={[
-                    { value: 'all', name: 'All' },
-                    { value: 'over', name: 'Over Budget' },
-                    { value: 'near', name: 'Near Limit' },
-                    { value: 'good', name: 'Good' },
-                  ]}
-                  bind:value={categoryFilterStatus}
-                  class="w-full"
-                />
-              </div>
-            </div>
-          {/if}
-          <div class="space-y-2">
-            {#if filteredCategories().length > 0}
-              {#each filteredCategories() as category (category.uuid)}
-                {@const categorySpent = category.categorySpent}
-                {@const categoryRemaining = category.limit - categorySpent}
-                {@const categoryOverAmount = categorySpent - category.limit}
-                {@const categoryProgress = Math.min(
-                  category.limit > 0 ? (categorySpent / category.limit) * 100 : 0,
-                  100,
-                )}
-                {@const isOverLimit = category.isOverLimit}
-                {@const isNearLimit = category.isNearLimit}
-                {@const categoryItemCount = budget.budgetItems.filter(
-                  (item) => item.categoryId === category.uuid,
-                ).length}
-                <div
-                  class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
-                  role="button"
-                  tabindex="0"
-                  onclick={(e) => {
-                    // Don't navigate if clicking on the delete or edit button
-                    const target = e.target as HTMLElement;
-                    if (!target.closest('.delete-btn') && !target.closest('.edit-btn')) {
-                      goto(Route.category_purchases(params.uuid, category.uuid));
-                    }
-                  }}
-                  onkeydown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      goto(Route.category_purchases(params.uuid, category.uuid));
-                    }
-                  }}
-                >
-                  <div class="mb-2 flex items-center justify-between">
-                    <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
-                      {category.name}
-                    </P>
-                    <div class="flex items-center gap-2">
-                      <P size="base" class="text-neutral-500 dark:text-neutral-400">
-                        {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
-                      </P>
-                      <EditIcon
-                        onclick={(e: MouseEvent) => handleEditCategoryClick(category, e)}
-                        ariaLabel="Edit category"
-                      />
-                      <DeleteIcon
-                        onclick={(e: MouseEvent) => handleDeleteCategoryClick(category, e)}
-                        disabled={isDeletingCategory}
-                        ariaLabel="Delete category"
-                      />
-                    </div>
-                  </div>
-                  <Progressbar
-                    progress={categoryProgress}
-                    color={isOverLimit ? 'red' : isNearLimit ? 'yellow' : 'green'}
-                    class="mb-2"
-                    style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
-                  />
-                  <div class="flex items-center justify-between pt-2">
-                    <div class="flex items-center gap-1.5">
-                      <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
-                      <span class="text-base text-neutral-600 dark:text-neutral-400">
-                        {categoryItemCount}
-                        {categoryItemCount === 1 ? 'item' : 'items'}
+              <div>
+                <div class="mb-3 flex items-center justify-between gap-2">
+                  <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">
+                    Purchases
+                    {#if filteredPurchases().length !== budget.budgetItems.length}
+                      <span
+                        class="ml-2 text-base font-normal text-neutral-500 dark:text-neutral-400"
+                      >
+                        ({filteredPurchases().length} of {budget.budgetItems.length})
                       </span>
-                    </div>
-                    <P
+                    {/if}
+                  </P>
+                  <div class="flex items-center gap-2">
+                    <Button
+                      color="primary"
                       size="sm"
-                      class="text-right {isOverLimit
-                        ? 'text-red-600 dark:text-red-400'
-                        : isNearLimit
-                          ? 'text-yellow-600 dark:text-yellow-400'
-                          : 'text-green-600 dark:text-green-400'}"
+                      pill
+                      class="h-8 w-8 p-0"
+                      onclick={handleAddItem}
+                      aria-label="Add purchase"
                     >
-                      {#if isOverLimit}
-                        Over by {formatCurrency(categoryOverAmount)}
-                      {:else}
-                        {formatCurrency(categoryRemaining)} remaining
-                      {/if}
-                    </P>
+                      <PlusOutline class="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              {/each}
+                <div
+                  class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                >
+                  <Search
+                    clearable
+                    placeholder="Search purchases..."
+                    bind:value={searchQuery}
+                    class="w-full"
+                  />
+                  <MultiSelect
+                    items={categoryFilterOptions()}
+                    bind:value={selectedCategoryFilters}
+                    placeholder="Select categories..."
+                    class="w-full"
+                  />
+                </div>
+
+                {#if budget.budgetItems.length > 0}
+                  {#if filteredPurchases().length > 0}
+                    <div class="space-y-2">
+                      {#each filteredPurchases() as item (item.uuid)}
+                        {@const category = getCategory(item.categoryId, budget.categories)}
+                        <div
+                          class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                        >
+                          <div class="flex flex-col">
+                            <div class="flex w-full items-center justify-between gap-2">
+                              <div class="flex items-center gap-2">
+                                <P
+                                  size="base"
+                                  class="text-primary-900 dark:text-primary-200 font-semibold"
+                                >
+                                  {item.name}:
+                                </P>
+                                <P
+                                  size="lg"
+                                  class="font-semibold whitespace-nowrap text-green-700 dark:text-green-500"
+                                >
+                                  {formatCurrency(item.amount)}
+                                </P>
+                              </div>
+                              <div class="flex items-center">
+                                <EditIcon
+                                  onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
+                                  ariaLabel="Edit purchase"
+                                />
+                                <DeleteIcon
+                                  onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
+                                  disabled={isDeleting}
+                                  ariaLabel="Delete purchase"
+                                />
+                              </div>
+                            </div>
+                            <div class="flex w-full items-center justify-between">
+                              {#if category}
+                                <span
+                                  class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
+                                  title={category.name}
+                                >
+                                  {category.name}
+                                </span>
+                              {/if}
+                              <span
+                                class="shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
+                              >
+                                {isoStringToDate(item.purchaseDate)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  {:else}
+                    <div
+                      class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                      <P size="base" class="text-neutral-500 dark:text-neutral-400">
+                        No purchases match your search or filter criteria
+                      </P>
+                    </div>
+                  {/if}
+                {:else}
+                  <div
+                    class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+                  >
+                    <P size="base" class="text-neutral-500 dark:text-neutral-400"
+                      >No purchases recorded yet</P
+                    >
+                  </div>
+                {/if}
+              </div>
             {:else}
               <div
-                class="rounded-lg border border-neutral-200 bg-white p-4 text-center dark:border-neutral-700 dark:bg-neutral-800"
+                class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
               >
                 <P size="base" class="text-neutral-500 dark:text-neutral-400">
-                  No categories match the selected filter
+                  Add categories first to record purchases.
                 </P>
               </div>
             {/if}
           </div>
-        {:else}
-          <div
-            class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
-          >
-            <P size="base" class="mb-4 text-neutral-500 dark:text-neutral-400">
-              No categories yet. Create your first category to get started.
-            </P>
-          </div>
-        {/if}
-      </div>
-      {#if budget.categories.length > 0}
-        <div>
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold">
-              Purchases
-              {#if filteredPurchases().length !== budget.budgetItems.length}
-                <span class="ml-2 text-base font-normal text-neutral-500 dark:text-neutral-400">
-                  ({filteredPurchases().length} of {budget.budgetItems.length})
-                </span>
-              {/if}
-            </P>
-            <div class="flex items-center gap-2">
-              <Button
-                color="primary"
-                size="sm"
-                pill
-                class="h-8 w-8 p-0"
-                onclick={handleAddItem}
-                aria-label="Add purchase"
+        </TabItem>
+        <TabItem key="categories" title="Categories">
+          <div class="pt-4">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold"
+                >Categories</P
               >
-                <PlusOutline class="h-4 w-4" />
-              </Button>
-              <Button
-                color="alternative"
-                size="sm"
-                outline
-                class="border-none p-2"
-                onclick={() => (showFilters = !showFilters)}
-                aria-label="Toggle filters"
-              >
-                <AdjustmentsHorizontalOutline
-                  class="text-primary-900 dark:text-primary-200 h-4 w-4"
-                />
-              </Button>
-            </div>
-          </div>
-        {#if showFilters}
-          <div
-            class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
-          >
-            <Search
-              clearable
-              placeholder="Search purchases..."
-              bind:value={searchQuery}
-              class="w-full"
-            />
-            <MultiSelect
-              items={categoryFilterOptions()}
-              bind:value={selectedCategoryFilters}
-              placeholder="Select categories..."
-              class="w-full"
-            />
-          </div>
-        {/if}
-
-        {#if budget.budgetItems.length > 0}
-          {#if filteredPurchases().length > 0}
-            <div class="space-y-2">
-              {#each filteredPurchases() as item (item.uuid)}
-                {@const category = getCategory(item.categoryId, budget.categories)}
-                <div
-                  class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+              <div class="flex items-center gap-2">
+                <Button
+                  color="primary"
+                  size="sm"
+                  pill
+                  class="h-8 w-8 p-0"
+                  onclick={handleAddCategory}
+                  aria-label="Add category"
                 >
-                  <div class="flex flex-col">
-                    <div class="flex w-full items-center justify-between gap-2">
-                      <div class="flex items-center gap-2">
-                        <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
-                          {item.name}
-                        </P>
-                        <P
-                          size="base"
-                          class="text-primary-900 dark:text-primary-200 font-semibold whitespace-nowrap"
-                        >
-                          {formatCurrency(item.amount)}
-                        </P>
-                      </div>
-                      <div class="flex items-center">
-                        <EditIcon
-                          onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
-                          ariaLabel="Edit purchase"
-                        />
-                        <DeleteIcon
-                          onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
-                          disabled={isDeleting}
-                          ariaLabel="Delete purchase"
-                        />
-                      </div>
-                    </div>
-                    <div class="flex w-full items-center justify-between">
-                      {#if category}
-                        <span
-                          class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
-                          title={category.name}
-                        >
-                          {category.name}
-                        </span>
-                      {/if}
-                      <span
-                        class="shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
-                      >
-                        {isoStringToDate(item.purchaseDate)}
-                      </span>
-                    </div>
-                  </div>
-                  <!-- <div class="flex items-start justify-between gap-3"> -->
-                  <!-- <div class="min-w-0 flex-1 overflow-hidden"> -->
-                  <!-- <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
-                        {item.name}
-                      </P>
-                      <div class="flex w-full border border-red-500">
-                        <div>item 1</div>
-                        <div>item 2</div>
-                      </div> -->
-                  <!-- <div class="mt-1 flex items-center gap-2">
-                        {#if category}
-                          <span
-                            class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
-                            title={category.name}
-                          >
-                            {category.name}
-                          </span>
-                        {/if}
-                        <span
-                          class="shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
-                        >
-                          {isoStringToDate(item.purchaseDate)}
-                        </span>
-                      </div> -->
-                  <!-- </div> -->
-                  <!-- <div class="flex shrink-0 items-center gap-2">
-                      <P
-                        size="base"
-                        class="text-primary-900 dark:text-primary-200 font-semibold whitespace-nowrap"
-                      >
-                        {formatCurrency(item.amount)}
-                      </P>
-                      <EditIcon
-                        onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
-                        ariaLabel="Edit purchase"
-                      />
-                      <DeleteIcon
-                        onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
-                        disabled={isDeleting}
-                        ariaLabel="Delete purchase"
-                      />
-                    </div> -->
-                  <!-- </div> -->
+                  <PlusOutline class="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {#if budget.categories.length > 0}
+              <div
+                class="mb-4 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+              >
+                <Search
+                  clearable
+                  placeholder="Search categories..."
+                  bind:value={categorySearchQuery}
+                  class="w-full"
+                />
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Select
+                    size="sm"
+                    items={[
+                      { value: 'title-a-z', name: 'Title A-Z' },
+                      { value: 'title-z-a', name: 'Title Z-A' },
+                      { value: 'recently-used', name: 'Recently Used' },
+                      { value: 'amount-low-high', name: 'Amount Low-High' },
+                      { value: 'amount-high-low', name: 'Amount High-Low' },
+                    ]}
+                    bind:value={categorySortBy}
+                    class="w-full"
+                  />
+                  <Select
+                    size="sm"
+                    items={[
+                      { value: 'all', name: 'All' },
+                      { value: 'over', name: 'Over Budget' },
+                      { value: 'near', name: 'Near Limit' },
+                      { value: 'good', name: 'Good' },
+                    ]}
+                    bind:value={categoryFilterStatus}
+                    class="w-full"
+                  />
                 </div>
-              {/each}
-            </div>
-          {:else}
-            <div
-              class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
-            >
-              <P size="base" class="text-neutral-500 dark:text-neutral-400">
-                No purchases match your search or filter criteria
-              </P>
-            </div>
-          {/if}
-        {:else}
-          <div
-            class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
-          >
-            <P size="base" class="text-neutral-500 dark:text-neutral-400"
-              >No purchases recorded yet</P
-            >
+              </div>
+              <div class="space-y-2">
+                {#if filteredCategories().length > 0}
+                  {#each filteredCategories() as category (category.uuid)}
+                    {@const categorySpent = category.categorySpent}
+                    {@const categoryRemaining = category.limit - categorySpent}
+                    {@const categoryOverAmount = categorySpent - category.limit}
+                    {@const categoryProgress = Math.min(
+                      category.limit > 0 ? (categorySpent / category.limit) * 100 : 0,
+                      100,
+                    )}
+                    {@const isOverLimit = category.isOverLimit}
+                    {@const isNearLimit = category.isNearLimit}
+                    {@const categoryItemCount = budget.budgetItems.filter(
+                      (item) => item.categoryId === category.uuid,
+                    ).length}
+                    <div
+                      class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
+                      role="button"
+                      tabindex="0"
+                      onclick={(e) => {
+                        // Don't navigate if clicking on the delete or edit button
+                        const target = e.target as HTMLElement;
+                        if (!target.closest('.delete-btn') && !target.closest('.edit-btn')) {
+                          goto(Route.category_purchases(params.uuid, category.uuid));
+                        }
+                      }}
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          goto(Route.category_purchases(params.uuid, category.uuid));
+                        }
+                      }}
+                    >
+                      <div class="mb-2 flex items-center justify-between">
+                        <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
+                          {category.name}
+                        </P>
+                        <div class="flex items-center gap-2">
+                          <P size="base" class="text-neutral-500 dark:text-neutral-400">
+                            {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
+                          </P>
+                          <EditIcon
+                            onclick={(e: MouseEvent) => handleEditCategoryClick(category, e)}
+                            ariaLabel="Edit category"
+                          />
+                          <DeleteIcon
+                            onclick={(e: MouseEvent) => handleDeleteCategoryClick(category, e)}
+                            disabled={isDeletingCategory}
+                            ariaLabel="Delete category"
+                          />
+                        </div>
+                      </div>
+                      <Progressbar
+                        progress={categoryProgress}
+                        color={isOverLimit ? 'red' : isNearLimit ? 'yellow' : 'green'}
+                        class="mb-2"
+                        style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
+                      />
+                      <div class="flex items-center justify-between pt-2">
+                        <div class="flex items-center gap-1.5">
+                          <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
+                          <span class="text-base text-neutral-600 dark:text-neutral-400">
+                            {categoryItemCount}
+                            {categoryItemCount === 1 ? 'item' : 'items'}
+                          </span>
+                        </div>
+                        <P
+                          size="sm"
+                          class="text-right {isOverLimit
+                            ? 'text-red-600 dark:text-red-400'
+                            : isNearLimit
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : 'text-green-600 dark:text-green-400'}"
+                        >
+                          {#if isOverLimit}
+                            Over by {formatCurrency(categoryOverAmount)}
+                          {:else}
+                            {formatCurrency(categoryRemaining)} remaining
+                          {/if}
+                        </P>
+                      </div>
+                    </div>
+                  {/each}
+                {:else}
+                  <div
+                    class="rounded-lg border border-neutral-200 bg-white p-4 text-center dark:border-neutral-700 dark:bg-neutral-800"
+                  >
+                    <P size="base" class="text-neutral-500 dark:text-neutral-400">
+                      No categories match the selected filter
+                    </P>
+                  </div>
+                {/if}
+              </div>
+            {:else}
+              <div
+                class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+              >
+                <P size="base" class="mb-4 text-neutral-500 dark:text-neutral-400">
+                  No categories yet. Create your first category to get started.
+                </P>
+              </div>
+            {/if}
           </div>
-        {/if}
-        </div>
-      {/if}
+        </TabItem>
+      </Tabs>
     </main>
   {:else}
     <main
