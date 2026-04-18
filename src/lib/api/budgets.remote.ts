@@ -11,6 +11,11 @@ import { budgets, categories, budgetItems } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { dollarsToCents } from '$lib/utils/money';
 
+/** Dollars: positive = purchase, negative = refund. Zero is not allowed. */
+const purchaseItemAmountSchema = z.coerce
+  .number()
+  .refine((n) => Number.isFinite(n) && n !== 0, 'Enter a non-zero amount (use negative for refunds)');
+
 export const getBudgets = query(async () => {
   const event = getRequestEvent();
 
@@ -170,7 +175,7 @@ export const addCategory = form(
 export const addBudgetItem = form(
   z.object({
     name: z.string().min(1, 'Item name is required'),
-    amount: z.coerce.number().positive('Amount must be greater than 0'),
+    amount: purchaseItemAmountSchema,
     budgetId: z.string().min(1, 'Budget is required'),
     categoryId: z.string().min(1, 'Category is required'),
     purchaseDate: z.string().min(1, 'Purchase date is required'),
@@ -387,7 +392,7 @@ export const updateBudgetItem = form(
   z.object({
     budgetItemId: z.string().min(1, 'Budget item ID is required'),
     name: z.string().min(1, 'Item name is required'),
-    amount: z.coerce.number().positive('Amount must be greater than 0'),
+    amount: purchaseItemAmountSchema,
     categoryId: z.string().min(1, 'Category is required'),
     purchaseDate: z.string().min(1, 'Purchase date is required'),
   }),

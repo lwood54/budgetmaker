@@ -18,7 +18,7 @@ export function parseUserInputToCents(input: string): number | null {
   if (!cleaned) return null;
 
   const dollars = parseFloat(cleaned);
-  if (isNaN(dollars) || dollars < 0) return null;
+  if (isNaN(dollars)) return null;
 
   return dollarsToCents(dollars);
 }

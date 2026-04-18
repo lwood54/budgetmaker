@@ -1,0 +1,13 @@
+---
+description: Do not run production builds or full verification unless explicitly requested
+alwaysApply: true
+---
+
+# Builds and verification
+
+- **Do not** run `pnpm build`, `vite build`, `npm run build`, `pnpm run check`, `svelte-check`, or similar full verification commands after routine code edits.
+- **Do not** run builds "to confirm the change compiles" unless the user explicitly asks for a build, CI output, or release verification.
+- Rely on **read_lints** / editor diagnostics for local feedback when appropriate.
+- If a change is risky and verification would help, **ask the user** whether they want a build run instead of running it automatically.
+
+When verification *is* appropriate (user asked, debugging CI, pre-merge): run the minimum command they requested.

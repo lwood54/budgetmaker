@@ -148,12 +148,12 @@
               remoteForm.validate({ includeUntouched: false });
             }}
           >
-            <option value="credit-card">Credit Card</option>
             <option value="car">Car Loan</option>
+            <option value="credit-card">Credit Card</option>
             <option value="mortgage">Mortgage</option>
-            <option value="student-loan">Student Loan</option>
-            <option value="personal-loan">Personal Loan</option>
             <option value="other">Other</option>
+            <option value="personal-loan">Personal Loan</option>
+            <option value="student-loan">Student Loan</option>
           </select>
         </div>
         <div>

@@ -1,20 +1,20 @@
 <script lang="ts">
   import { Button, P, Progressbar, Search, Modal, Tabs, TabItem } from 'flowbite-svelte';
-  import { ArrowLeftOutline } from 'flowbite-svelte-icons';
+  import { ArrowLeftOutline, ArrowRightOutline, ChevronDownOutline, PlusOutline } from 'flowbite-svelte-icons';
   import { getBudget, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
   import { getCategoryTotalSpent, getCategory } from '$lib/helpers/budgets';
   import { isoStringToDate } from '$lib/helpers/conversions';
+  import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
   import { page } from '$app/state';
   import type { BudgetItem } from '$lib/server/db/schema';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import DeleteBudgetModal from '../components/DeleteBudgetModal.svelte';
-  import { PlusOutline } from 'flowbite-svelte-icons';
   import { onMount } from 'svelte';
 
   let { params } = $props();
@@ -41,6 +41,37 @@
 
   // Tab state - default to purchases
   let selectedTab = $state<'purchases' | 'categories'>('purchases');
+
+  /** Categories tab: which row is expanded to show purchases inline (accordion). */
+  let expandedCategoryId = $state<string | null>(null);
+
+  $effect(() => {
+    params.uuid;
+    expandedCategoryId = null;
+  });
+
+  $effect(() => {
+    if (selectedTab !== 'categories') {
+      expandedCategoryId = null;
+    }
+  });
+
+  // flowbite-svelte Tabs registers tab keys in $effect; `bind:selected` can run before the
+  // registry is populated (more likely in prod/minified builds). Re-apply the default once per
+  // loaded budget so the Purchases tab and panel stay in sync.
+  let flowbiteTabsSyncedKey = $state<string | null>(null);
+  $effect(() => {
+    if (!browser || !budget) return;
+    const k = `${params.uuid}:${budget.uuid}`;
+    if (flowbiteTabsSyncedKey === k) return;
+    flowbiteTabsSyncedKey = k;
+    queueMicrotask(() => {
+      selectedTab = 'categories';
+      queueMicrotask(() => {
+        selectedTab = 'purchases';
+      });
+    });
+  });
 
   function handleAddCategory() {
     goto(Route.category_new(params.uuid));
@@ -288,6 +319,26 @@
     goto(`${Route.item_edit(params.uuid, item.uuid)}?from=${encodeURIComponent(currentUrl)}`);
   }
 
+  function purchasesForCategory(categoryUuid: string): BudgetItem[] {
+    if (!budget) return [];
+    return [...budget.budgetItems]
+      .filter((item) => item.categoryId === categoryUuid)
+      .sort(
+        (a, b) =>
+          new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime(),
+      );
+  }
+
+  function toggleCategoryExpand(categoryUuid: string) {
+    expandedCategoryId = expandedCategoryId === categoryUuid ? null : categoryUuid;
+  }
+
+  function handleOpenCategoryPage(e: MouseEvent, categoryUuid: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    goto(Route.category_purchases(params.uuid, categoryUuid));
+  }
+
   onMount(() => {
     getBudget(params.uuid).refresh();
   });
@@ -377,9 +428,10 @@
           </div>
         </div>
       </div>
-      <Tabs bind:selected={selectedTab} tabStyle="underline" class="mb-6">
-        <TabItem key="purchases" title="Purchases">
-          <div class="pt-4">
+      {#key params.uuid}
+        <Tabs bind:selected={selectedTab} tabStyle="underline" class="mb-6">
+          <TabItem key="purchases" title="Purchases">
+            <div class="pt-4">
             {#if budget.categories.length > 0}
               <div>
                 <div class="mb-3 flex items-center justify-between gap-2">
@@ -431,23 +483,15 @@
                         <div
                           class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                         >
-                          <div class="flex flex-col">
-                            <div class="flex w-full items-center justify-between gap-2">
-                              <div class="flex items-center gap-2">
-                                <P
-                                  size="base"
-                                  class="text-primary-900 dark:text-primary-200 font-semibold"
-                                >
-                                  {item.name}:
-                                </P>
-                                <P
-                                  size="lg"
-                                  class="font-semibold whitespace-nowrap text-green-700 dark:text-green-500"
-                                >
-                                  {formatCurrency(item.amount)}
-                                </P>
-                              </div>
-                              <div class="flex items-center">
+                          <div class="flex flex-col gap-1">
+                            <div class="flex w-full items-start justify-between gap-2">
+                              <P
+                                size="base"
+                                class="text-primary-900 dark:text-primary-200 min-w-0 font-semibold"
+                              >
+                                {item.name}
+                              </P>
+                              <div class="flex shrink-0 items-center">
                                 <EditIcon
                                   onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
                                   ariaLabel="Edit purchase"
@@ -459,20 +503,30 @@
                                 />
                               </div>
                             </div>
-                            <div class="flex w-full items-center justify-between">
-                              {#if category}
-                                <span
-                                  class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
-                                  title={category.name}
-                                >
-                                  {category.name}
-                                </span>
-                              {/if}
-                              <span
-                                class="shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
+                            <div class="flex flex-col gap-1">
+                              <P
+                                size="lg"
+                                class="font-semibold tabular-nums {item.amount < 0
+                                  ? 'text-blue-700 dark:text-blue-400'
+                                  : 'text-green-700 dark:text-green-500'}"
                               >
-                                {isoStringToDate(item.purchaseDate)}
-                              </span>
+                                {formatCurrency(item.amount)}
+                              </P>
+                              <div class="flex w-full items-center gap-2">
+                                {#if category}
+                                  <span
+                                    class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300 max-w-[200px] shrink-0 truncate rounded-full px-2 py-0.5 text-base"
+                                    title={category.name}
+                                  >
+                                    {category.name}
+                                  </span>
+                                {/if}
+                                <span
+                                  class="ms-auto shrink-0 text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
+                                >
+                                  {isoStringToDate(item.purchaseDate)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -506,10 +560,10 @@
                 </P>
               </div>
             {/if}
-          </div>
-        </TabItem>
-        <TabItem key="categories" title="Categories">
-          <div class="pt-4">
+            </div>
+          </TabItem>
+          <TabItem key="categories" title="Categories">
+            <div class="pt-4">
             <div class="mb-3 flex items-center justify-between gap-2">
               <P size="xl" class="text-primary-900 dark:text-primary-200 font-semibold"
                 >Categories</P
@@ -539,8 +593,10 @@
                   class="w-full"
                 />
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Select
+                  <SelectWithSearch
                     size="sm"
+                    sortAlphabetically={false}
+                    searchPlaceholder="Search sort options..."
                     items={[
                       { value: 'title-a-z', name: 'Title A-Z' },
                       { value: 'title-z-a', name: 'Title Z-A' },
@@ -551,8 +607,10 @@
                     bind:value={categorySortBy}
                     class="w-full"
                   />
-                  <Select
+                  <SelectWithSearch
                     size="sm"
+                    sortAlphabetically={false}
+                    searchPlaceholder="Search filters..."
                     items={[
                       { value: 'all', name: 'All' },
                       { value: 'over', name: 'Over Budget' },
@@ -580,71 +638,166 @@
                       (item) => item.categoryId === category.uuid,
                     ).length}
                     <div
-                      class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition-colors active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:active:bg-neutral-700"
-                      role="button"
-                      tabindex="0"
-                      onclick={(e) => {
-                        // Don't navigate if clicking on the delete or edit button
-                        const target = e.target as HTMLElement;
-                        if (!target.closest('.delete-btn') && !target.closest('.edit-btn')) {
-                          goto(Route.category_purchases(params.uuid, category.uuid));
-                        }
-                      }}
-                      onkeydown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          goto(Route.category_purchases(params.uuid, category.uuid));
-                        }
-                      }}
+                      class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                     >
-                      <div class="mb-2 flex items-center justify-between">
-                        <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
-                          {category.name}
-                        </P>
-                        <div class="flex items-center gap-2">
-                          <P size="base" class="text-neutral-500 dark:text-neutral-400">
-                            {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
-                          </P>
-                          <EditIcon
-                            onclick={(e: MouseEvent) => handleEditCategoryClick(category, e)}
-                            ariaLabel="Edit category"
-                          />
-                          <DeleteIcon
-                            onclick={(e: MouseEvent) => handleDeleteCategoryClick(category, e)}
-                            disabled={isDeletingCategory}
-                            ariaLabel="Delete category"
-                          />
-                        </div>
-                      </div>
-                      <Progressbar
-                        progress={categoryProgress}
-                        color={isOverLimit ? 'red' : isNearLimit ? 'yellow' : 'green'}
-                        class="mb-2"
-                        style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
-                      />
-                      <div class="flex items-center justify-between pt-2">
-                        <div class="flex items-center gap-1.5">
-                          <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
-                          <span class="text-base text-neutral-600 dark:text-neutral-400">
-                            {categoryItemCount}
-                            {categoryItemCount === 1 ? 'item' : 'items'}
-                          </span>
+                      <div
+                        class="cursor-pointer p-3 transition-colors hover:bg-neutral-50 active:bg-neutral-100 dark:hover:bg-neutral-800/80 dark:active:bg-neutral-700/80"
+                        role="button"
+                        tabindex="0"
+                        aria-expanded={expandedCategoryId === category.uuid}
+                        onclick={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (
+                            target.closest('.delete-btn') ||
+                            target.closest('.edit-btn') ||
+                            target.closest('.category-open-page-btn')
+                          ) {
+                            return;
+                          }
+                          toggleCategoryExpand(category.uuid);
+                        }}
+                        onkeydown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleCategoryExpand(category.uuid);
+                          }
+                        }}
+                      >
+                        <div class="mb-2 flex items-start justify-between gap-2">
+                          <div class="flex min-w-0 flex-1 items-start gap-2">
+                            <ChevronDownOutline
+                              class="text-primary-900 dark:text-primary-200 mt-0.5 h-5 w-5 shrink-0 transition-transform {expandedCategoryId ===
+                              category.uuid
+                                ? 'rotate-180'
+                                : ''}"
+                            />
+                            <P
+                              size="base"
+                              class="text-primary-900 dark:text-primary-200 min-w-0 font-semibold"
+                            >
+                              {category.name}
+                            </P>
+                          </div>
+                          <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+                            <P
+                              size="base"
+                              class="hidden text-neutral-500 sm:block dark:text-neutral-400"
+                            >
+                              {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
+                            </P>
+                            <Button
+                              color="alternative"
+                              size="sm"
+                              pill
+                              class="category-open-page-btn h-8 w-8 shrink-0 border-none p-0"
+                              title="Open category page"
+                              aria-label="Open category page"
+                              onclick={(e: MouseEvent) => handleOpenCategoryPage(e, category.uuid)}
+                            >
+                              <ArrowRightOutline
+                                class="text-primary-700 dark:text-primary-300 h-4 w-4"
+                              />
+                            </Button>
+                            <EditIcon
+                              onclick={(e: MouseEvent) => handleEditCategoryClick(category, e)}
+                              ariaLabel="Edit category"
+                            />
+                            <DeleteIcon
+                              onclick={(e: MouseEvent) => handleDeleteCategoryClick(category, e)}
+                              disabled={isDeletingCategory}
+                              ariaLabel="Delete category"
+                            />
+                          </div>
                         </div>
                         <P
-                          size="sm"
-                          class="text-right {isOverLimit
-                            ? 'text-red-600 dark:text-red-400'
-                            : isNearLimit
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : 'text-green-600 dark:text-green-400'}"
+                          size="base"
+                          class="text-neutral-500 dark:text-neutral-400 mb-2 sm:hidden"
                         >
-                          {#if isOverLimit}
-                            Over by {formatCurrency(categoryOverAmount)}
-                          {:else}
-                            {formatCurrency(categoryRemaining)} remaining
-                          {/if}
+                          {formatCurrency(categorySpent)} / {formatCurrency(category.limit)}
                         </P>
+                        <Progressbar
+                          progress={categoryProgress}
+                          color={isOverLimit ? 'red' : isNearLimit ? 'yellow' : 'green'}
+                          class="mb-2"
+                          style={isOverLimit ? 'background-color: rgb(239 68 68);' : ''}
+                        />
+                        <div class="flex items-center justify-between pt-2">
+                          <div class="flex items-center gap-1.5">
+                            <div class="bg-accent-500 dark:bg-accent-400 h-2 w-2 rounded-full"></div>
+                            <span class="text-base text-neutral-600 dark:text-neutral-400">
+                              {categoryItemCount}
+                              {categoryItemCount === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+                          <P
+                            size="sm"
+                            class="text-right {isOverLimit
+                              ? 'text-red-600 dark:text-red-400'
+                              : isNearLimit
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-green-600 dark:text-green-400'}"
+                          >
+                            {#if isOverLimit}
+                              Over by {formatCurrency(categoryOverAmount)}
+                            {:else}
+                              {formatCurrency(categoryRemaining)} remaining
+                            {/if}
+                          </P>
+                        </div>
                       </div>
+
+                      {#if expandedCategoryId === category.uuid}
+                        <div
+                          class="space-y-2 border-t border-neutral-200 bg-neutral-50/80 p-3 dark:border-neutral-700 dark:bg-neutral-900/40"
+                        >
+                          {#each purchasesForCategory(category.uuid) as item (item.uuid)}
+                            <div
+                              class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                            >
+                              <div class="flex flex-col gap-1">
+                                <div class="flex w-full items-start justify-between gap-2">
+                                  <P
+                                    size="base"
+                                    class="text-primary-900 dark:text-primary-200 min-w-0 font-semibold"
+                                  >
+                                    {item.name}
+                                  </P>
+                                  <div class="flex shrink-0 items-center">
+                                    <EditIcon
+                                      onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
+                                      ariaLabel="Edit purchase"
+                                    />
+                                    <DeleteIcon
+                                      onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
+                                      disabled={isDeleting}
+                                      ariaLabel="Delete purchase"
+                                    />
+                                  </div>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                  <P
+                                    size="lg"
+                                    class="font-semibold tabular-nums {item.amount < 0
+                                      ? 'text-blue-700 dark:text-blue-400'
+                                      : 'text-green-700 dark:text-green-500'}"
+                                  >
+                                    {formatCurrency(item.amount)}
+                                  </P>
+                                  <span
+                                    class="ms-auto shrink-0 self-end text-base whitespace-nowrap text-neutral-500 dark:text-neutral-400"
+                                  >
+                                    {isoStringToDate(item.purchaseDate)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          {:else}
+                            <P size="base" class="text-neutral-500 dark:text-neutral-400 px-1 py-2">
+                              No purchases in this category yet.
+                            </P>
+                          {/each}
+                        </div>
+                      {/if}
                     </div>
                   {/each}
                 {:else}
@@ -666,9 +819,10 @@
                 </P>
               </div>
             {/if}
-          </div>
-        </TabItem>
-      </Tabs>
+            </div>
+          </TabItem>
+        </Tabs>
+      {/key}
     </main>
   {:else}
     <main
