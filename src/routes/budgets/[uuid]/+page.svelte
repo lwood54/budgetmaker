@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, P, Progressbar, Search, Modal, Tabs, TabItem } from 'flowbite-svelte';
-  import { ArrowLeftOutline, AdjustmentsHorizontalOutline } from 'flowbite-svelte-icons';
+  import { ArrowLeftOutline } from 'flowbite-svelte-icons';
   import { getBudget, deleteBudgetItem, deleteCategory } from '$lib/api/budgets.remote';
   import { formatCurrency } from '$lib/utils/money';
   import { getCategoryTotalSpent, getCategory } from '$lib/helpers/budgets';
