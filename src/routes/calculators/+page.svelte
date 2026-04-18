@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Card } from 'flowbite-svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import CreditCardCalculator from './components/credit-card-calculator.svelte';
   import type { Union } from '$lib/types/custom/utils';
   import AutoLoanCalculator from './components/auto-loan-calculator.svelte';
@@ -22,11 +22,13 @@
 
 <div class="container mx-auto px-4 py-8">
   <div class="mx-auto mb-6 w-full">
-    <Select
+    <SelectWithSearch
       size="lg"
+      sortAlphabetically={false}
       items={calculators}
       bind:value={selectedCalculator}
       placeholder="Select a calculator"
+      searchPlaceholder="Search calculators..."
       class="w-full text-lg md:w-1/3"
     />
   </div>

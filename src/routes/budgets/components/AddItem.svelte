@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button, Label, Datepicker } from 'flowbite-svelte';
   import Input from '$lib/components/Input.svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import {
     addBudgetItem,
     getBudget,
@@ -9,6 +9,8 @@
     getBudgets,
     getCategoryPurchases,
   } from '$lib/api/budgets.remote';
+
+  const addItemFormInstanceId = $props.id();
 
   interface BudgetOption {
     value: string;
@@ -40,6 +42,9 @@
     onBudgetChange,
   }: Props = $props();
 
+  // Isolated remote form per component instance so values don't persist after leaving the page
+  const addItemForm = addBudgetItem.for(addItemFormInstanceId);
+
   let isSubmitting = $state(false);
   let itemBudgetId = $state(initialBudgetId);
   let itemCategoryId = $state('');
@@ -65,12 +70,12 @@
 </script>
 
 <form
-  {...addBudgetItem.enhance(async ({ form, submit }) => {
+  {...addItemForm.enhance(async ({ form, submit }) => {
     isSubmitting = true;
     try {
       await submit();
 
-      if (addBudgetItem.result?.success === true) {
+      if (addItemForm.result?.success === true) {
         form.reset();
         // Store budgetId and categoryId before resetting state
         const budgetIdToRefresh = itemBudgetId;
@@ -116,7 +121,7 @@
   <div>
     <Label for="item-name" class="mb-2 block">Purchase Name</Label>
     <Input
-      field={addBudgetItem.fields.name}
+      field={addItemForm.fields.name}
       placeholder="e.g., Milk"
       disabled={isSubmitting}
       class="text-xl"
@@ -136,14 +141,15 @@
   {#if !hideBudgetSelect}
     <div>
       <Label for="item-budget" class="mb-2 block">Budget</Label>
-      <Select
+      <SelectWithSearch
         id="item-budget"
         name="budgetId"
         size="lg"
-        classes={{ select: 'h-12 truncate text-xl' }}
+        class="[&>button]:truncate [&>button]:text-xl"
         items={budgetOptions}
         bind:value={itemBudgetId}
         disabled={isSubmitting}
+        searchPlaceholder="Search budgets..."
         required
       />
     </div>
@@ -152,27 +158,27 @@
   {/if}
   <div>
     <Label for="item-category" class="mb-2 block">Category</Label>
-    <Select
+    <SelectWithSearch
       id="item-category"
       name="categoryId"
-      field={addBudgetItem.fields.categoryId}
+      field={addItemForm.fields.categoryId}
       size="lg"
-      classes={{ select: 'h-12 truncate text-xl' }}
+      class="[&>button]:truncate [&>button]:text-xl"
       items={categoryOptions}
       bind:value={itemCategoryId}
       disabled={!itemBudgetId || categoryOptions.length === 0 || isSubmitting}
       placeholder={!itemBudgetId ? 'Select a budget first' : 'Select a category'}
+      searchPlaceholder="Search categories..."
       required
     />
   </div>
   <div>
     <Label for="item-amount" class="mb-2 block">Amount ($)</Label>
     <Input
-      field={addBudgetItem.fields.amount}
+      field={addItemForm.fields.amount}
       type="number"
       step="0.01"
-      min="0"
-      placeholder="5.00"
+      placeholder="38.00 or -12.98"
       disabled={isSubmitting}
       class="text-xl"
     />

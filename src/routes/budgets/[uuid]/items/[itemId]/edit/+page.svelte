@@ -2,7 +2,7 @@
   import { Button, P, Label } from 'flowbite-svelte';
   import { ArrowLeftOutline } from 'flowbite-svelte-icons';
   import Input from '$lib/components/Input.svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import { Datepicker } from 'flowbite-svelte';
   import {
     updateBudgetItem,
@@ -163,15 +163,16 @@
           >
             Category
           </Label>
-          <Select
+          <SelectWithSearch
             id="item-category"
             name="categoryId"
             size="lg"
-            classes={{ select: 'h-12 truncate text-xl' }}
+            class="[&>button]:truncate [&>button]:text-xl"
             items={categoryOptions}
             bind:value={itemCategoryId}
             disabled={categoryOptions.length === 0 || isSubmitting}
             placeholder="Select a category"
+            searchPlaceholder="Search categories..."
             required
           />
         </div>
@@ -188,9 +189,8 @@
             name="amount"
             type="number"
             step="0.01"
-            min="0"
             initialValue={initialAmount}
-            placeholder="5.00"
+            placeholder="38.00 or -12.98"
             required
             disabled={isSubmitting}
             class="w-full text-xl"

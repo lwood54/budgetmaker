@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Button, P, Datepicker, Input, Modal, Label, Alert } from 'flowbite-svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import { QuestionCircleOutline } from 'flowbite-svelte-icons';
   import {
     getDebts,
@@ -765,13 +765,14 @@
         {#if scenarios.length > 0}
           <div class="flex items-center gap-2">
             <P size="sm">Scenario:</P>
-            <Select
+            <SelectWithSearch
               items={scenarios.map((s) => ({ value: s.uuid, name: s.name }))}
               bind:value={selectedScenarioId}
               onSelect={(option) => {
                 handleScenarioChange(option.value);
               }}
               placeholder="Select a scenario"
+              searchPlaceholder="Search scenarios..."
             />
           </div>
         {/if}

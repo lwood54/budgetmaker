@@ -28,6 +28,12 @@
     onChange,
   }: Props = $props();
 
+  const sortedItems = $derived(
+    [...items].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    ),
+  );
+
   let isOpen = $state(false);
   let dropdownRef = $state<HTMLElement | null>(null);
 
@@ -145,13 +151,13 @@
     <div
       class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
     >
-      {#if items.length === 0}
+      {#if sortedItems.length === 0}
         <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">
           No options available
         </div>
       {:else}
         <div class="p-2">
-          {#each items as item (item.value)}
+          {#each sortedItems as item (item.value)}
             <label
               class="flex cursor-pointer items-center gap-2 rounded px-2 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             >

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, P, Progressbar } from 'flowbite-svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
   import EditIcon from '$lib/components/EditIcon.svelte';
   import DeleteBudgetModal from './components/DeleteBudgetModal.svelte';
@@ -171,8 +171,10 @@
       <div class="mb-3 flex items-center justify-between">
         <P size="3xl" class="text-primary-900 dark:text-primary-200 font-bold">My Budgets</P>
         {#if budgets.length > 0}
-          <Select
+          <SelectWithSearch
             size="sm"
+            sortAlphabetically={false}
+            searchPlaceholder="Search sort options..."
             items={[
               { value: 'created-date', name: 'Created Date' },
               { value: 'recently-used', name: 'Recently Used' },
@@ -275,7 +277,7 @@
                   })}
                 </p>
               </div>
-              <div class="ml-2 flex flex-shrink-0 items-center gap-2">
+              <div class="ml-2 flex shrink-0 items-center gap-2">
                 <EditIcon
                   onclick={(e: MouseEvent) => handleEditClick(budget, e)}
                   disabled={false}

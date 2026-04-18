@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, P, Modal } from 'flowbite-svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import SavedPlanView from '../components/SavedPlanView.svelte';
   import { getSavedPlans, deletePaydownSavedPlan } from '$lib/api/paydown.remote';
   import { type SavedPlan } from '../helpers';
@@ -59,7 +59,7 @@
 <div class="flex w-full flex-col gap-4">
   {#if savedPlans.length > 0}
     <div class="flex items-center gap-3">
-      <Select
+      <SelectWithSearch
         items={savedPlans.map((p) => ({ value: p.id, name: p.name }))}
         bind:value={selectedSavedPlanId}
         onSelect={(option) => {
@@ -67,6 +67,7 @@
         }}
         class="w-72"
         placeholder="Select Plan"
+        searchPlaceholder="Search plans..."
       />
     </div>
     {#if selectedSavedPlanId}

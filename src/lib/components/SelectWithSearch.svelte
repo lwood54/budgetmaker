@@ -17,12 +17,12 @@
     dropdownClass?: string;
     value?: string | null;
     placeholder?: string;
+    searchPlaceholder?: string;
     disabled?: boolean;
     required?: boolean;
     id?: string;
     name?: string;
     size?: 'sm' | 'md' | 'lg';
-    /** When true (default), options are shown in locale-aware A→Z order by label. Set false for fixed semantic order (e.g. sort modes). */
     sortAlphabetically?: boolean;
     onSelect?: (option: Option) => void;
   }
@@ -34,6 +34,7 @@
     dropdownClass = '',
     value = $bindable('' as string | null),
     placeholder = 'Select an option',
+    searchPlaceholder = 'Search...',
     disabled = false,
     required = false,
     id,
@@ -44,11 +45,12 @@
   }: Props = $props();
 
   let isOpen = $state(false);
+  let searchQuery = $state('');
   let selectRef = $state<HTMLDivElement | null>(null);
   let buttonRef = $state<HTMLButtonElement | null>(null);
   let dropdownRef = $state<HTMLDivElement | null>(null);
+  let searchInputRef = $state<HTMLInputElement | null>(null);
 
-  // Track screen width for truncation
   let screenWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   $effect(() => {
@@ -69,9 +71,14 @@
     );
   });
 
-  // Truncate items based on screen width
+  const filteredItems = $derived.by(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sortedItems;
+    return sortedItems.filter((opt) => opt.name.toLowerCase().includes(q));
+  });
+
   const truncatedItems = $derived(
-    sortedItems.map((option) => ({
+    filteredItems.map((option) => ({
       ...option,
       name: truncateText(option.name, screenWidth),
     })),
@@ -85,6 +92,20 @@
     selectedItem ? truncateText(selectedItem.name, screenWidth) : placeholder,
   );
 
+  $effect(() => {
+    if (!isOpen) searchQuery = '';
+  });
+
+  $effect(() => {
+    if (isOpen && !disabled) {
+      requestAnimationFrame(() => searchInputRef?.focus());
+    }
+  });
+
+  function optionButtons(): HTMLButtonElement[] {
+    return Array.from(dropdownRef?.querySelectorAll('button[role="option"]') ?? []);
+  }
+
   function toggleDropdown() {
     if (disabled) return;
     isOpen = !isOpen;
@@ -94,7 +115,6 @@
     value = itemValue;
     isOpen = false;
 
-    // Call onSelect callback with the selected option object
     if (onSelect) {
       const selectedOption = sortedItems.find((item) => item.value === itemValue);
       if (selectedOption) {
@@ -103,10 +123,8 @@
     }
   }
 
-  // Sync value with field if provided
   $effect(() => {
     if (field && value) {
-      // Update field value when our value changes
       const input = document.querySelector(`input[name="${name || id}"]`) as HTMLInputElement;
       if (input) {
         input.value = value;
@@ -126,7 +144,7 @@
     }
   }
 
-  function handleKeydown(event: KeyboardEvent) {
+  function handleButtonKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       isOpen = false;
       buttonRef?.focus();
@@ -135,17 +153,32 @@
       isOpen = true;
     } else if (event.key === 'ArrowDown' && isOpen) {
       event.preventDefault();
-      const firstOption = dropdownRef?.querySelector('button') as HTMLButtonElement;
-      firstOption?.focus();
+      searchInputRef?.focus();
     } else if (event.key === 'ArrowUp' && isOpen) {
       event.preventDefault();
-      const options = Array.from(dropdownRef?.querySelectorAll('button') || []);
-      const currentIndex = options.findIndex((el) => el === document.activeElement);
+      const opts = optionButtons();
+      const currentIndex = opts.findIndex((el) => el === document.activeElement);
       if (currentIndex > 0) {
-        (options[currentIndex - 1] as HTMLButtonElement).focus();
+        opts[currentIndex - 1]?.focus();
+      } else if (currentIndex === 0) {
+        searchInputRef?.focus();
       } else {
         buttonRef?.focus();
       }
+    }
+  }
+
+  function handleSearchKeydown(event: KeyboardEvent) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      optionButtons()[0]?.focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      buttonRef?.focus();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      isOpen = false;
+      buttonRef?.focus();
     }
   }
 
@@ -182,10 +215,8 @@
     };
   }
 
-  // Update dropdown width when it opens
   $effect(() => {
     if (isOpen && buttonRef && dropdownRef) {
-      // Use requestAnimationFrame to ensure DOM is updated
       requestAnimationFrame(() => {
         if (buttonRef && dropdownRef) {
           dropdownRef.style.width = `${buttonRef.offsetWidth}px`;
@@ -203,7 +234,7 @@
     {name}
     {disabled}
     onclick={toggleDropdown}
-    onkeydown={handleKeydown}
+    onkeydown={handleButtonKeydown}
     class={`focus:border-primary-500 focus:ring-primary-500 dark:focus:border-primary-500 dark:focus:ring-primary-500 flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:placeholder-neutral-400 ${sizeClasses[size]}`}
     aria-haspopup="listbox"
     aria-expanded={isOpen}
@@ -222,14 +253,31 @@
     <div
       bind:this={dropdownRef}
       role="listbox"
-      class={`absolute left-0 z-50 mt-1 max-h-60 overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800 ${dropdownClass}`}
+      class={`absolute left-0 z-50 mt-1 flex max-h-60 flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800 ${dropdownClass}`}
     >
-      {#if sortedItems.length === 0}
-        <div class="px-4 py-2 text-sm text-neutral-500 dark:text-neutral-400">
-          No options available
-        </div>
-      {:else}
-        <div class="p-1">
+      <div class="shrink-0 border-b border-neutral-200 p-2 dark:border-neutral-700">
+        <input
+          bind:this={searchInputRef}
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder={searchPlaceholder}
+          bind:value={searchQuery}
+          onclick={(e) => e.stopPropagation()}
+          onkeydown={handleSearchKeydown}
+          class="focus:border-primary-500 focus:ring-primary-500 dark:focus:border-primary-500 dark:focus:ring-primary-500 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500 focus:ring-2 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:placeholder-neutral-400"
+        />
+      </div>
+      <div class="min-h-0 flex-1 overflow-auto p-1">
+        {#if sortedItems.length === 0}
+          <div class="px-4 py-2 text-sm text-neutral-500 dark:text-neutral-400">
+            No options available
+          </div>
+        {:else if filteredItems.length === 0}
+          <div class="px-4 py-2 text-sm text-neutral-500 dark:text-neutral-400">
+            No matching options
+          </div>
+        {:else}
           {#each truncatedItems as item (item.value)}
             <button
               type="button"
@@ -240,6 +288,20 @@
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   selectItem(item.value);
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  const opts = optionButtons();
+                  const i = opts.findIndex((el) => el === e.currentTarget);
+                  opts[i + 1]?.focus();
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const opts = optionButtons();
+                  const i = opts.findIndex((el) => el === e.currentTarget);
+                  if (i > 0) {
+                    opts[i - 1]?.focus();
+                  } else {
+                    searchInputRef?.focus();
+                  }
                 }
               }}
               class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-neutral-900 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700 {value ===
@@ -265,8 +327,8 @@
               <span class="truncate">{item.name}</span>
             </button>
           {/each}
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
   {/if}
 </div>

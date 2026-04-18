@@ -213,28 +213,38 @@
               <div
                 class="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
               >
-                <div class="flex items-start justify-between">
-                  <div class="min-w-0 flex-1">
-                    <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
+                <div class="flex flex-col gap-1">
+                  <div class="flex w-full items-start justify-between gap-2">
+                    <P
+                      size="base"
+                      class="text-primary-900 dark:text-primary-200 min-w-0 font-semibold"
+                    >
                       {item.name}
                     </P>
-                    <span class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                      {isoStringToDate(item.purchaseDate)}
-                    </span>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <EditIcon
+                        onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
+                        ariaLabel="Edit purchase"
+                      />
+                      <DeleteIcon
+                        onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
+                        disabled={isDeleting}
+                        ariaLabel="Delete purchase"
+                      />
+                    </div>
                   </div>
-                  <div class="ml-3 flex items-center gap-2">
-                    <P size="base" class="text-primary-900 dark:text-primary-200 font-semibold">
+                  <div class="flex flex-col gap-1">
+                    <P
+                      size="lg"
+                      class="font-semibold tabular-nums {item.amount < 0
+                        ? 'text-blue-700 dark:text-blue-400'
+                        : 'text-green-700 dark:text-green-500'}"
+                    >
                       {formatCurrency(item.amount)}
                     </P>
-                    <EditIcon
-                      onclick={(e: MouseEvent) => handleEditItemClick(item, e)}
-                      ariaLabel="Edit purchase"
-                    />
-                    <DeleteIcon
-                      onclick={(e: MouseEvent) => handleDeleteClick(item, e)}
-                      disabled={isDeleting}
-                      ariaLabel="Delete purchase"
-                    />
+                    <span class="text-sm text-neutral-500 dark:text-neutral-400">
+                      {isoStringToDate(item.purchaseDate)}
+                    </span>
                   </div>
                 </div>
               </div>

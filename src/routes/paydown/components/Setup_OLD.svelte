@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, P, Input, Modal, Label } from 'flowbite-svelte';
-  import Select from '$lib/components/Select.svelte';
+  import SelectWithSearch from '$lib/components/SelectWithSearch.svelte';
   import DeleteIcon from '$lib/components/DeleteIcon.svelte';
 
   import { type PaydownDebt, type MonthlyIncome, type RecurringExpense } from '../helpers';
@@ -175,10 +175,11 @@
 </form>
 
 <div class="mb-6 flex items-center gap-3">
-  <Select
+  <SelectWithSearch
     items={scenariosItems}
     bind:value={selectedScenarioId}
     placeholder="Select a scenario"
+    searchPlaceholder="Search scenarios..."
     class="w-80"
   />
   <Button
