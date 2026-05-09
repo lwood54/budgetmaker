@@ -2,6 +2,7 @@
   import { Button, P } from 'flowbite-svelte';
   import { ArrowLeftOutline } from 'flowbite-svelte-icons';
   import AddCategory from '../../../components/AddCategory.svelte';
+  import SuccessToast from '$lib/components/SuccessToast.svelte';
   import { getBudget, getCategories } from '$lib/api/budgets.remote';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
@@ -10,12 +11,14 @@
 
   const budget = $derived(await getBudget(params.uuid));
 
+  let successToastMessage = $state<string | null>(null);
+
   async function handleSuccess() {
-    // Refresh the budget data
     await getBudget(params.uuid).refresh();
     await getCategories(params.uuid).refresh();
-    // Navigate back to the budget page
-    goto(Route.budget(params.uuid));
+    successToastMessage = 'Category created successfully.';
+    await new Promise((r) => setTimeout(r, 1200));
+    // goto(Route.budget(params.uuid));
   }
 
   function handleCancel() {
@@ -59,3 +62,5 @@
     </div>
   </main>
 </div>
+
+<SuccessToast bind:message={successToastMessage} />
