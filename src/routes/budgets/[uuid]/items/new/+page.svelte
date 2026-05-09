@@ -2,6 +2,7 @@
   import { Button, P } from 'flowbite-svelte';
   import { ArrowLeftOutline } from 'flowbite-svelte-icons';
   import AddItem from '../../../components/AddItem.svelte';
+  import SuccessToast from '$lib/components/SuccessToast.svelte';
   import { getBudget, getCategories } from '$lib/api/budgets.remote';
   import { goto } from '$app/navigation';
   import { Route } from '$lib/constants/routes';
@@ -20,15 +21,15 @@
 
   const hasCategories = $derived((categories ?? []).length > 0);
 
+  let successToastMessage = $state<string | null>(null);
+
   function handleAddCategory() {
     goto(Route.category_new(params.uuid));
   }
 
   async function handleSuccess() {
-    // Refresh the budget data
     await getBudget(params.uuid).refresh();
-    // Navigate back to the budget page
-    goto(Route.budget(params.uuid));
+    successToastMessage = 'Purchase recorded successfully.';
   }
 
   function handleCancel() {
@@ -87,3 +88,5 @@
     </div>
   </main>
 </div>
+
+<SuccessToast bind:message={successToastMessage} />

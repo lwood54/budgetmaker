@@ -49,6 +49,8 @@
   let itemBudgetId = $state(initialBudgetId);
   let itemCategoryId = $state('');
   let purchaseDate = $state<Date>(new Date());
+  /** Remount Datepicker after reset so its internal calendar/input state stays in sync (same calendar day → same formatted string → stale UI without remount). */
+  let datepickerKey = $state(0);
 
   $effect(() => {
     if (initialBudgetId) {
@@ -107,6 +109,7 @@
         itemBudgetId = initialBudgetId;
         itemCategoryId = '';
         purchaseDate = new Date();
+        datepickerKey += 1;
         onSuccess();
       }
     } catch (error) {
@@ -129,14 +132,16 @@
   </div>
   <div>
     <Label for="item-date" class="mb-2 block">Date</Label>
-    <Datepicker
-      id="item-date"
-      inputClass="text-xl h-12"
-      color="primary"
-      bind:value={purchaseDate}
-      autohide
-      disabled={isSubmitting}
-    />
+    {#key datepickerKey}
+      <Datepicker
+        id="item-date"
+        inputClass="text-xl h-12"
+        color="primary"
+        bind:value={purchaseDate}
+        autohide
+        disabled={isSubmitting}
+      />
+    {/key}
   </div>
   {#if !hideBudgetSelect}
     <div>
